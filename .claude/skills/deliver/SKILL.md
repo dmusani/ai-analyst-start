@@ -21,12 +21,12 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 
 ## Act 1: Find the run and check it is ready (the gate)
 
-1. Find the run folder. Use the argument if given. Otherwise use the newest folder under `outputs/` that holds a `review.md`.
+1. Find the run folder. Use the argument if given. Otherwise list the folders under `outputs/` that hold a `review.md`. If exactly one does, use it. If more than one does, show each with its date and the question from its `frame.md`, and ask with AskUserQuestion which one to use. Never pick the newest by default.
 2. Read `frame.md` and `review.md`. If either is missing, say which and stop. A brief without a frame has no question, and a brief without a review has no verdict.
 3. Read the verdict in `review.md`:
    - **Fix first:** stop. Say that the review found problems that change the numbers, list the findings in one line each, and write no brief.
    - **Think on it:** continue. Every finding whose Kind is "for the brief" goes into the Checks section as not verified. Leave out any finding that only concerns how a chart or table looks, unless it changes how a number reads.
-   - **Looks good:** continue.
+   - **Ship it:** continue.
 4. If `brief.md` already exists, read it and tell the person you are replacing it. Never overwrite one silently.
 
 ## Act 2: Gather what the brief may say
@@ -41,12 +41,14 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 
 Write for the audience named in the frame. Plain words. No jargon the audience would not use. No em dashes anywhere in the brief. Dates are written as dates, and "today" means 2026-09-24, where the data ends.
 
+The Recommendation and the Key Takeaways use the audience's words. Leave out statistical terms such as subscriber-months, interval and baseline there; say what the number means for the business. Keep those terms to Evidence and How this was measured, and explain each in a few words.
+
 Write `outputs/<run>/brief.md` with these sections, in this order:
 
 1. **Title.** The answer as a sentence, not a topic. "Trial conversion is flat at 53%" beats "Trial conversion".
-2. **Recommendation.** First, before any evidence. What to do, in one to three sentences, tied to the decision in the frame. If the result does not cross the threshold named under "What would change the decision", say so. If the data cannot support a recommendation, say that plainly instead of forcing one.
+2. **Recommendation.** First, before any evidence. What to do, in one to three sentences, tied to the decision in the frame. Recommend only what this reader can decide or act on. A data or engineering task, such as rerunning the script or adding a column, is not a recommendation; it goes in the "Before you publish" note. Lead with the stake: the number or consequence that makes it matter. If the result does not cross the threshold named under "What would change the decision", say so. If the data cannot support a recommendation, say that plainly instead of forcing one.
 3. **Key Takeaways.** Three to five bullets. Each is one sentence, states a number with its comparison, names the unit of change (percentage points or relative percent), and could be read alone. These bullets are copied verbatim by the analyst onto the CLI, so each must make sense out of context.
-4. **Evidence.** One short paragraph or a few bullets per takeaway. Embed each chart with a relative path, such as `![Title](charts/name.png)`. Each number is followed by its source in brackets: the table, the filter and the script, for example `[data/weekly_conversion.csv, matured trials only, analysis.py step 3]`.
+4. **Evidence.** One short paragraph or a few bullets per takeaway. Every Key Takeaway has a chart or a table behind it here, and every chart or table backs a takeaway. A chart that backs nothing stays in the run folder. Embed each chart with a relative path, such as `![Title](charts/name.png)`. Each number is followed by its source in brackets: the table, the filter and the script, for example `[data/weekly_conversion.csv, matured trials only, analysis.py step 3]`.
 5. **How this was measured.** The metric, the population, the time window and the comparison, in plain words. Name any quirk that shaped them. If any of the four differs from the definition in `frame.md`, say which one and why, in one sentence each, so the reader knows the brief does not measure exactly what was first asked.
 6. **Checks.** What was verified and what was not:
    - What the review checked, from its Mechanics and Reasoning sections, in a line or two.
@@ -75,9 +77,9 @@ On the CLI, show only:
 - The path of `brief.md`.
 - The verdict from `review.md`.
 - The recommendation, in one line.
-- Anything you left out because the analysis did not produce it.
+- **Before you publish:** a short note for the analyst, not the reader, naming what to resolve before the brief is shared. Include borderline findings, missing or stale charts, anything you left out because the analysis did not produce it, and any data or engineering task you took out of the recommendation. If there is nothing, say so. The brief itself keeps its Checks section; this note is only for what the reader should not see.
 
-Keep it under ten lines. Do not paste the brief into the CLI.
+Keep it under twelve lines. Do not paste the brief into the CLI.
 
 ## Principles
 

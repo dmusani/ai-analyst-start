@@ -1,6 +1,6 @@
 ---
 name: frame
-description: Pins down a business question about Beam's data before any analysis starts: the question in one sentence, the decision it informs, who decides, what would change the decision, and which tables are likely involved. Use at the start of any business question, or when a question is vague about what it is for. Creates the run folder under outputs/ and writes frame.md in it.
+description: Pins down a business question about Beam's data before any analysis starts: the question in the asker's own words, the decision it informs, who decides, what would change the decision, and which tables are likely involved. Use at the start of any business question, or when a question is vague about what it is for. Creates the run folder under outputs/ and writes frame.md in it.
 user-invocable: true
 allowed-tools: Read Bash Write Edit Glob AskUserQuestion
 argument-hint: "<the business question>"
@@ -22,7 +22,7 @@ Your job is to turn a question into a frame the next steps can work from: one se
 ## Act 1: Find the question (the gate)
 
 1. The question is `$ARGUMENTS`. If it is empty, ask for the question with AskUserQuestion and stop. Never invent one.
-2. Restate the question in one sentence of your own. If you cannot, the question is not ready; ask what is unclear.
+2. Keep the asker's words exactly as given. Do not rewrite the question in analyst terms; jargon turns it into a different question by the time the brief is written. If you cannot tell what it asks, the question is not ready; ask what is unclear.
 
 ## Act 2: Find the decision (the gate)
 
@@ -32,7 +32,7 @@ A question is framed only when you know what it informs and who decides.
 2. For each of these that is missing, ask with AskUserQuestion. Ask only for what is missing, in one call, and offer short options where the choices are obvious plus the free-text option:
    - The decision this question informs.
    - Who decides, which is the audience for the answer.
-   - What would change the decision: the result, threshold or direction that would make them choose differently. If the person does not know, write "not stated" and do not make one up.
+   - What would change the decision: the result, threshold or direction that would make them choose differently. If the person does not know, write "not stated" and do not make one up. Settle this now, before any number exists. Written after the analysis, it only agrees with the result.
 3. If the question already states all of these, confirm them back in one line instead of asking.
 4. If the person cannot say what decision the question informs, say so plainly and stop. Do not write a frame note for a question with no decision behind it.
 
@@ -47,6 +47,7 @@ A question is framed only when you know what it informs and who decides.
    - **The comparison.** What the number will be set against: a prior period, a segment or a benchmark. Say "no comparison available" if none exists.
 4. Name the quirks that will matter for this question, one line each. If a quirk touches the window or the comparison, say so.
 5. Choose the tables likely involved. Name each by the CSV name without the extension, with one line on why. A table that needs no note yet still gets listed; the analyst checks for missing notes.
+6. Name what is not in scope: questions the asker may expect this analysis to answer but it will not, so the brief does not drift. One line each, or "none identified yet".
 
 ## Act 4: Write the frame note
 
@@ -56,10 +57,10 @@ A question is framed only when you know what it informs and who decides.
 4. Write `outputs/<run>/frame.md` with exactly these sections:
 
    ```markdown
-   # Frame: <the question in one sentence>
+   # Frame
 
    ## Question
-   <the question as the person asked it, then your one-sentence restatement>
+   <the asker's words, exactly as given. Only if the question is unclear, add one line starting "Understood as:" in plain words the asker would use>
 
    ## Decision
    <the decision this informs>
@@ -84,6 +85,9 @@ A question is framed only when you know what it informs and who decides.
 
    ## Tables likely involved
    - `<table>`: <why>
+
+   ## Not in scope
+   - <what this analysis will not answer, one line each>
    ```
 
 5. Mark every definition you chose yourself with "(assumed)" until the person confirms it. Facts the person gave you carry no mark.
@@ -106,5 +110,7 @@ Keep it under ten lines. Do not paste the frame note into the CLI.
 - **Say what would change the decision.** A question with no result that could change anything is a report, not an analysis. Name that if you see it.
 - **A guess is labelled a guess.** Every definition you choose says "(assumed)" until a person confirms it.
 - **Write it down once.** Later steps read `frame.md`; they do not ask the question again.
+- **The asker's words stay the asker's words.** A question rewritten in analyst terms becomes a different question by the time the brief is written.
+- **What would change the decision is written before any number exists.** Written afterwards, it only ever agrees with the result.
 - **Never overwrite.** A run folder or a frame note that already exists is kept; make a new folder instead.
 - **Today is 2026-09-24.** The data ends there, and every window is judged against that date, never the real one.

@@ -55,6 +55,8 @@ Judge the work against `frame.md`, not against the analyst's own summary.
 
 ## Act 4: Findings and verdict
 
+Report at most three findings, ranked by how much each could change the conclusion or mislead the reader. A review with six equal findings highlights nothing. If more than three things matter, keep the three that matter most and put the rest in Not checked, one line each. Group several small script changes into one finding. Fewer than three is fine; never pad.
+
 Write each finding so the analyst can act on it without asking you what you meant.
 
 Each finding has:
@@ -70,7 +72,7 @@ The verdict is the most serious severity among the findings:
 
 - **Fix first:** at least one finding is Fix first. Do not write the brief yet.
 - **Think on it:** no Fix first findings, at least one Think on it.
-- **Looks good:** no findings. Say what you checked, so the reader knows how much the verdict covers.
+- **Ship it:** no findings. Say what you checked, so the reader knows how much the verdict covers.
 
 Do not soften a Fix first to be agreeable, and do not invent a finding to look thorough.
 
@@ -82,7 +84,7 @@ Write `outputs/<run>/review.md` with these sections, replacing any earlier file 
 # Review: <the question in one sentence>
 
 ## Verdict
-**<Fix first | Think on it | Looks good>**: <one line saying why>
+**<Fix first | Think on it | Ship it>**: <one line saying why>
 
 Round: <1, 2>
 
@@ -93,6 +95,12 @@ Round: <1, 2>
 - Evidence:
 - Fix:
 - Kind: <small script change | for the brief>
+
+## What's solid
+<one short paragraph>
+
+## One question to sit with
+<a single question>
 
 ## Mechanics
 | Check | Result | Evidence |
@@ -108,6 +116,8 @@ Round: <1, 2>
 ## Earlier round
 - <earlier finding>: <fixed | not fixed>
 ```
+
+**What's solid** is one short paragraph on what the analyst can trust and stop worrying about, naming the checks that mattered and passed. It keeps a Think on it from reading as "everything is shaky". **One question to sit with** is a single analytical question, not a fix and not a suggestion: does the output mean what the analyst thinks it means, or will the audience read it differently than intended? It should be a question you could not ask of any other analysis.
 
 Describe the work as you found it. You change nothing, so never write that a fix was "done" or "applied"; the analyst applies fixes after the review, and a fix is not recorded here until a later round checks it. If `analysis.py` or a chart changes while you review, you have gone past your role: stop, and report only the findings.
 
@@ -131,5 +141,6 @@ Keep it under twelve lines. Do not paste the review into the CLI.
 - **Judge against the frame.** The question, the decision and the quirks are the standard, not the analyst's own account of what it did.
 - **A finding the analyst can act on.** Where, what, evidence and the specific fix. Never "this seems off".
 - **The verdict is the worst finding.** No averaging, no softening, no padding.
+- **Selectivity over completeness.** Three findings that matter beat six that do not. Whatever does not make the three goes in Not checked.
 - **Say what you did not check.** A gap you name is safer than one a reader finds later.
 - **Never fix.** You review; the analyst edits.
