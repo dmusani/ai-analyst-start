@@ -42,7 +42,7 @@ A question is framed only when you know what it informs and who decides.
 2. List `data/*.csv` with Glob and read any `knowledge/beam/<table>.md` that exists. Do not open the CSVs.
 3. Pin down the terms the question leaves loose. For each that applies, write what you will assume and mark it for confirmation:
    - **The metric.** What exactly is "conversion", "churn", "active"? Use the table notes and quirks to name the definition you would use.
-   - **The population.** Which rows count, and which are excluded by a known quirk (free plans, unmatured trials, scheduled starts).
+   - **The population.** Which rows count, and which are excluded by a known quirk (free plans, unmatured trials, scheduled starts). When a quirk implies a rule for who counts, for example that a trial must have run its full window before its outcome is read, put that rule in this definition. Do not name the quirk under Quirks and then define the population against it.
    - **The time window.** Which period, and whether it has closed. Treat 2026-09-24 as today.
    - **The comparison.** What the number will be set against: a prior period, a segment or a benchmark. Say "no comparison available" if none exists.
 4. Name the quirks that will matter for this question, one line each. If a quirk touches the window or the comparison, say so.

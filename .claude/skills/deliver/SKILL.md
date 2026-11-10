@@ -43,6 +43,8 @@ Write for the audience named in the frame. Plain words. No jargon the audience w
 
 The Recommendation and the Key Takeaways use the audience's words. Leave out statistical terms such as subscriber-months, interval and baseline there; say what the number means for the business. Keep those terms to Evidence and How this was measured, and explain each in a few words.
 
+The Checks section is plain too. Say what was verified and what was not in sentences the reader can follow, and keep every caveat that changes how far the reader should trust a number. Leave out tooling and repo details: which packages are installed, which files exist or do not, "the first frame", how a recompute was done. Those belong in the "Before you publish" note. In a full `/analyst` run the CLI shows only the run folder, the verdict and the Key Takeaways, so that note may never be seen. Do not put anything the reader needs only there.
+
 Write `outputs/<run>/brief.md` with these sections, in this order:
 
 1. **Title.** The answer as a sentence, not a topic. "Trial conversion is flat at 53%" beats "Trial conversion".
