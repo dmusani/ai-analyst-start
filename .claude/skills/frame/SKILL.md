@@ -53,7 +53,7 @@ A question is framed only when you know what it informs and who decides.
 
 1. Get today's date with `date +%F`. Never guess it.
 2. Make a slug: three to five lowercase words from the question, joined by hyphens.
-3. Create `outputs/<YYYY-MM-DD>_<slug>/`. If it already exists, add `-2`, `-3` and so on rather than reusing it. Never overwrite an existing `frame.md`.
+3. Create `outputs/<YYYY-MM-DD>_<slug>/`. If it already exists, add `-2`, `-3` and so on rather than reusing it. Never overwrite an existing `frame.md`. An existing folder for the same question is never a reason to skip the run or to stop. A request to run is a request for a new run, and a duplicate is fine: make the new folder and continue. You may reuse the decision, audience and threshold from the earlier frame, but say in the new frame that you did.
 4. Write `outputs/<run>/frame.md` with exactly these sections:
 
    ```markdown
