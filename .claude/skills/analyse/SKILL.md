@@ -28,7 +28,7 @@ These hold in every act.
 - **If no comparison exists, say "no comparison available".** Never invent a baseline to fill the gap.
 - **Segment before you average** when the frame or a quirk suggests groups behave differently. An average over groups that move in opposite directions hides both.
 - **Percentage points and relative percent are different numbers.** A rate going from 40% to 44% is up 4 percentage points and up 10% relative. Name which one you mean, every time.
-- **Never trust a period that has not closed.** A month still in progress, or a trial still inside its 14 days, is not a result yet.
+- **Never trust a period that has not closed.** A month still in progress, or any record whose outcome is still open (see `quirks.md`), is not a result yet.
 
 ## Act 1: Find the question (the gate)
 
@@ -48,7 +48,7 @@ These hold in every act.
 Write three to six bullets describing the computation. The plan must say:
 
 - What each headline number is and the comparison it will carry (prior period, segment or benchmark), or that none exists.
-- How each applicable quirk is handled. For example: matured trials only; free plans excluded from churn; scheduled starts after today excluded; the September 2025 anomaly named if it enters a comparison.
+- How each applicable quirk is handled. Take them from `knowledge/beam/quirks.md`: apply each rule it gives for the tables involved, and name any listed anomaly that enters a comparison.
 - Which segments you will split by and why.
 - Which checks the script will run.
 
