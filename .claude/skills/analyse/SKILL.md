@@ -84,7 +84,7 @@ Keep it under twenty lines. No brief here; the Deliver step writes the brief.
 - **The model reasons, the code computes.** Every number comes out of `analysis.py`. None comes from prose arithmetic.
 - **Always compare.** A number without its comparison is not a finding. When there is no comparison, say so.
 - **Quirks first.** Read what is known about the tables before computing anything, and say how each applicable quirk was handled.
-- **Closed periods only.** An open month or an unmatured trial is not a result.
+- **Closed periods only.** An open month or a record whose outcome is not yet known (see `quirks.md`) is not a result.
 - **Name the unit of change.** Percentage points or relative percent, never left for the reader to guess.
 - **Rerunnable or it did not happen.** Anyone can run the script again and get the same tables, charts and numbers.
 - **Say what you did not check.** A gap you name is safer than one a reader finds later.

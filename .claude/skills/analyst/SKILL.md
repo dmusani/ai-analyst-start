@@ -18,7 +18,7 @@ Every step below follows these rules.
 3. **A naked number is not a finding.** Every number carries a comparison (prior period, segment or benchmark) or says none is available; percentage points and relative percent are named.
 4. **Cite the table, the filter and the code.** Every number in a brief traces to `analysis.py` and a result table in the run folder.
 5. **Parts sum to totals and joins do not fan out.** The checks in `helpers/checks.py` run in code, not in prose.
-6. **Say what was not checked.** Open periods, unmatured trials and untested assumptions are part of the answer.
+6. **Say what was not checked.** Open periods, records whose outcome is not yet known (see `quirks.md`) and untested assumptions are part of the answer.
 7. **Read the knowledge folder before writing code, and write back what you learn.** Read `knowledge/beam/` (table notes, `quirks.md`, `corrections.md`) first; when the user corrects you, append the correction to `corrections.md` as one dated line and continue.
 
 ## The steps
