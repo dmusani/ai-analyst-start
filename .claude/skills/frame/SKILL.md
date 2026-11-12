@@ -42,8 +42,8 @@ A question is framed only when you know what it informs and who decides.
 2. List `data/*.csv` with Glob and read any `knowledge/beam/<table>.md` that exists. Do not open the CSVs.
 3. Pin down the terms the question leaves loose. For each that applies, write what you will assume and mark it for confirmation:
    - **The metric.** What exactly is "conversion", "churn", "active"? Use the table notes and quirks to name the definition you would use.
-   - **The population.** Which rows count, and which are excluded by a known quirk (free plans, unmatured trials, scheduled starts). When a quirk implies a rule for who counts, for example that a trial must have run its full window before its outcome is read, put that rule in this definition. Do not name the quirk under Quirks and then define the population against it.
-   - **The time window.** Which period, and whether it has closed. Treat 2026-09-24 as today.
+   - **The population.** Which rows count, and which are excluded by a known quirk (whatever `quirks.md` lists). When a quirk implies a rule for who counts, for example that a trial must have run its full window before its outcome is read, put that rule in this definition. Do not name the quirk under Quirks and then define the population against it.
+   - **The time window.** Which period, and whether it has closed. Treat the analysis date as today (see Act 4 for where it comes from).
    - **The comparison.** What the number will be set against: a prior period, a segment or a benchmark. Say "no comparison available" if none exists.
 4. Name the quirks that will matter for this question, one line each. If a quirk touches the window or the comparison, say so.
 5. Choose the tables likely involved. Name each by the CSV name without the extension, with one line on why. A table that needs no note yet still gets listed; the analyst checks for missing notes.
@@ -52,9 +52,10 @@ A question is framed only when you know what it informs and who decides.
 ## Act 4: Write the frame note
 
 1. Get today's date with `date +%F`. Never guess it.
-2. Make a slug: three to five lowercase words from the question, joined by hyphens.
-3. Create `outputs/<YYYY-MM-DD>_<slug>/`. If it already exists, add `-2`, `-3` and so on rather than reusing it. Never overwrite an existing `frame.md`. An existing folder for the same question is never a reason to skip the run or to stop. A request to run is a request for a new run, and a duplicate is fine: make the new folder and continue. You may reuse the decision, audience and threshold from the earlier frame, but say in the new frame that you did.
-4. Write `outputs/<run>/frame.md` with exactly these sections:
+2. Find the analysis date: the date `AGENTS.md` says to treat as today, which is where the data ends. If the project files give none, ask with AskUserQuestion. Never use the real date for windows.
+3. Make a slug: three to five lowercase words from the question, joined by hyphens.
+4. Create `outputs/<YYYY-MM-DD>_<slug>/`. If it already exists, add `-2`, `-3` and so on rather than reusing it. Never overwrite an existing `frame.md`. An existing folder for the same question is never a reason to skip the run or to stop. A request to run is a request for a new run, and a duplicate is fine: make the new folder and continue. You may reuse the decision, audience and threshold from the earlier frame, but say in the new frame that you did.
+5. Write `outputs/<run>/frame.md` with exactly these sections:
 
    ```markdown
    # Frame
@@ -72,7 +73,7 @@ A question is framed only when you know what it informs and who decides.
    <the result, threshold or direction, or "not stated">
 
    ## Analysis date
-   2026-09-24 (the data ends here). Run folder created on <date +%F>.
+   <analysis date from AGENTS.md> (the data ends here). Run folder created on <date +%F>.
 
    ## Definitions to confirm
    - Metric: ...
@@ -90,7 +91,7 @@ A question is framed only when you know what it informs and who decides.
    - <what this analysis will not answer, one line each>
    ```
 
-5. Mark every definition you chose yourself with "(assumed)" until the person confirms it. Facts the person gave you carry no mark.
+6. Mark every definition you chose yourself with "(assumed)" until the person confirms it. Facts the person gave you carry no mark.
 
 ## Act 5: Report
 
@@ -113,4 +114,4 @@ Keep it under ten lines. Do not paste the frame note into the CLI.
 - **The asker's words stay the asker's words.** A question rewritten in analyst terms becomes a different question by the time the brief is written.
 - **What would change the decision is written before any number exists.** Written afterwards, it only ever agrees with the result.
 - **Never overwrite.** A run folder or a frame note that already exists is kept; make a new folder instead.
-- **Today is 2026-09-24.** The data ends there, and every window is judged against that date, never the real one.
+- **Today is the analysis date in `AGENTS.md`.** The data ends there, and every window is judged against that date, never the real one.

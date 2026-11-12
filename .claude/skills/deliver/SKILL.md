@@ -22,7 +22,7 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 ## Act 1: Find the run and check it is ready (the gate)
 
 1. Find the run folder. Use the argument if given. Otherwise list the folders under `outputs/` that hold a `review.md`. If exactly one does, use it. If more than one does, show each with its date and the question from its `frame.md`, and ask with AskUserQuestion which one to use. Never pick the newest by default.
-2. Read `frame.md` and `review.md`. If either is missing, say which and stop. A brief without a frame has no question, and a brief without a review has no verdict.
+2. Read `review.md`. If it is missing, say so and stop: a brief without a review has no verdict. Then read `frame.md`. If there is no frame note, ask with AskUserQuestion for the question, the decision it informs and who decides. If you still cannot get them, write the brief from the review and the result tables, and say under Checks that the decision and audience were not given, so the recommendation is a reading of the numbers, not advice on a decision.
 3. Read the verdict in `review.md`:
    - **Fix first:** stop. Say that the review found problems that change the numbers, list the findings in one line each, and write no brief.
    - **Think on it:** continue. Every finding whose Kind is "for the brief" goes into the Checks section as not verified. Leave out any finding that only concerns how a chart or table looks, unless it changes how a number reads.
@@ -31,7 +31,7 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 
 ## Act 2: Gather what the brief may say
 
-1. From `frame.md`, take the question, the decision, the audience, what would change the decision, and the definitions. Any definition still marked "(assumed)" goes into Checks.
+1. From `frame.md` (or from what the person told you if there was none), take the question, the decision, the audience, what would change the decision, and the definitions. Any definition still marked "(assumed)" goes into Checks.
 2. Read each result table in `outputs/<run>/data/` that a headline number comes from. Read the tables, not the raw data.
 3. Read `analysis.py` to find, for each number you will use, the table it comes from, the filter applied and the line or step that computes it.
 4. List the charts in `outputs/<run>/charts/`. Use only charts that exist.
@@ -39,7 +39,7 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 
 ## Act 3: Write the brief
 
-Write for the audience named in the frame. Plain words. No jargon the audience would not use. No em dashes anywhere in the brief. Dates are written as dates, and "today" means 2026-09-24, where the data ends.
+Write for the audience named in the frame. Plain words. No jargon the audience would not use. No em dashes anywhere in the brief. Dates are written as dates, and "today" means the analysis date in `frame.md` (from `AGENTS.md`), where the data ends.
 
 The Recommendation and the Key Takeaways use the audience's words. Leave out statistical terms such as subscriber-months, interval and baseline there; say what the number means for the business. Keep those terms to Evidence and How this was measured, and explain each in a few words.
 
@@ -47,7 +47,7 @@ The Checks section is plain too. Say what was verified and what was not in sente
 
 Write `outputs/<run>/brief.md` with these sections, in this order:
 
-1. **Title.** The answer as a sentence, not a topic. "Trial conversion is flat at 53%" beats "Trial conversion".
+1. **Title.** The answer as a sentence, not a topic. "Conversion is flat at 53%" beats "Conversion".
 2. **Recommendation.** First, before any evidence. What to do, in one to three sentences, tied to the decision in the frame. Recommend only what this reader can decide or act on. A data or engineering task, such as rerunning the script or adding a column, is not a recommendation; it goes in the "Before you publish" note. Lead with the stake: the number or consequence that makes it matter. If the result does not cross the threshold named under "What would change the decision", say so. If the data cannot support a recommendation, say that plainly instead of forcing one.
 3. **Key Takeaways.** Three to five bullets. Each is one sentence, states a number with its comparison, names the unit of change (percentage points or relative percent), and could be read alone. These bullets are copied verbatim by the analyst onto the CLI, so each must make sense out of context.
 4. **Evidence.** One short paragraph or a few bullets per takeaway. Every Key Takeaway has a chart or a table behind it here, and every chart or table backs a takeaway. A chart that backs nothing stays in the run folder. Embed each chart with a relative path, such as `![Title](charts/name.png)`. Each number is followed by its source in brackets: the table, the filter and the script, for example `[data/weekly_conversion.csv, matured trials only, analysis.py step 3]`.

@@ -46,7 +46,7 @@ Judge the work against `frame.md`, not against the analyst's own summary.
 1. **Does it answer the question?** The headline answers the question that was asked, for the audience that asked it. If it answers a nearby question, say which.
 2. **Does it speak to the decision?** The result is stated in a form the decision can use, and it says whether it crosses the threshold named under "What would change the decision".
 3. **Is every number compared?** Each carries a prior period, a segment or a benchmark, or says no comparison is available. The unit of change is named, percentage points or relative percent, and it is the right one.
-4. **Were the quirks handled?** Check each quirk in `knowledge/beam/quirks.md` against the script: unmatured trials, free plans in churn, future end dates, scheduled starts, the price change, the September 2025 spike, timestamps compared as dates. A quirk that applies and was not handled is a finding.
+4. **Were the quirks handled?** Check each quirk in `knowledge/beam/quirks.md` against the script. A quirk that applies and was not handled is a finding.
 5. **Is the population right?** The rows counted are the rows the frame says should count, and the denominator is the one the metric needs.
 6. **Is it segmented where it should be?** An average over groups that move in opposite directions hides both.
 7. **Are the claims no bigger than the evidence?** Watch for a cause claimed from a correlation, a trend read from two points, a small group read as a pattern, and a period that has not closed read as a result.
