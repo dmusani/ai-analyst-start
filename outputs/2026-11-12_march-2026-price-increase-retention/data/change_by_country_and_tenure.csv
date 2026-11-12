@@ -1,0 +1,13 @@
+country,tenure_at_increase,pre_per_1000,post_per_1000,change_per_1000,post_cancellations
+Rest,Under 3 months,0.0,77.5,77.5,55
+US,Under 3 months,12.3,75.1,62.8,96
+EU,Under 3 months,17.9,74.5,56.6,43
+India,3 to 12 months,29.4,76.3,46.9,169
+India,Under 3 months,28.6,75.3,46.7,47
+EU,3 to 12 months,30.6,73.8,43.2,154
+Rest,3 to 12 months,36.9,65.9,29.0,139
+US,3 to 12 months,29.3,57.2,27.9,247
+Rest,Over 12 months,11.4,39.0,27.6,117
+EU,Over 12 months,8.5,31.0,22.5,96
+India,Over 12 months,9.7,30.7,21.0,90
+US,Over 12 months,9.5,23.8,14.3,154

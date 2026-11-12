@@ -1,0 +1,8 @@
+test,statistic
+"device differs (chi-square, 2 df, cutoff 5.99)",8.87
+"country differs (chi-square, 3 df, cutoff 7.81)",5.38
+"iOS vs Web (z, cutoff 1.96)",2.89
+"Android vs Web (z, cutoff 1.96)",2.07
+"US vs EU (z, cutoff 1.96)",1.95
+"US vs other three countries (z, post hoc, cutoff 1.96)",2.26
+"second half vs first half (z, cutoff 1.96)",-0.43

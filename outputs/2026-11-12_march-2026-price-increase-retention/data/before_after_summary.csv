@@ -1,0 +1,7 @@
+plan,period,active_months,cancellations,per_1000
+monthly,"Jan to Aug 2025 ($10, before the spike)",27105,217,8.0
+monthly,"Oct 2025 to Feb 2026 ($10, after the spike)",26387,626,23.7
+monthly,Jan 2025 to Feb 2026 ($10),57623,894,15.5
+monthly,Mar to Aug 2026 ($12),32307,1697,52.5
+annual,Jan 2025 to Feb 2026,21623,81,3.7
+annual,Mar to Aug 2026,13791,71,5.1

@@ -1,0 +1,5 @@
+country,trials,converted,conversion_pct,ci_low_pct,ci_high_pct,overall_pct,gap_vs_overall_pp,gap_vs_rest_pp
+US,638,362,56.7,52.9,60.5,53.3,3.4,5.8
+Rest,311,162,52.1,46.5,57.6,53.3,-1.2,-1.5
+India,298,151,50.7,45.0,56.3,53.3,-2.6,-3.3
+EU,306,153,50.0,44.4,55.6,53.3,-3.3,-4.1

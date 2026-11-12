@@ -1,0 +1,4 @@
+device_type,pre_per_1000,post_per_1000,change_per_1000,relative_change_pct,post_cancellations,post_active_months
+Web,18.8,63.4,44.6,237.0,627,9895
+Android,14.7,55.9,41.2,280.0,613,10974
+iOS,13.2,40.0,26.8,203.0,457,11438

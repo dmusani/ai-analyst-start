@@ -1,0 +1,4 @@
+device_type,trials,converted,conversion_pct,ci_low_pct,ci_high_pct,overall_pct,gap_vs_overall_pp,gap_vs_rest_pp
+iOS,518,296,57.1,52.8,61.3,53.3,3.8,5.7
+Android,526,287,54.6,50.3,58.8,53.3,1.2,1.9
+Web,509,245,48.1,43.8,52.5,53.3,-5.2,-7.7
