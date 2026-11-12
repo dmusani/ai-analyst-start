@@ -1,6 +1,6 @@
 ---
 name: deliver
-description: Writes the brief for a finished, reviewed analysis of Beam's data: the recommendation first, the key takeaways, the evidence with its charts, and a Checks section that says what was and was not verified. Use after validate has reviewed a run folder and its verdict is not Fix first. Reads frame.md, review.md, the result tables and the charts, and writes brief.md in the run folder.
+description: Writes the brief for a finished, reviewed analysis of Beam's data. The recommendation first, the key takeaways, the evidence with its charts, and a Checks section that says what was and was not verified. Use after validate has reviewed a run folder and its verdict is not Fix first. Reads frame.md, review.md, the result tables and the charts, and writes brief.md in the run folder.
 user-invocable: true
 allowed-tools: Read Bash Write Edit Glob AskUserQuestion
 argument-hint: "[path to the run folder under outputs/]"
