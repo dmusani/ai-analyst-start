@@ -1,8 +1,8 @@
 ---
 name: analyse
-description: Answers a framed business question about Beam's data with one pandas script that can be rerun, where every headline number carries its comparison. Use after a question has been framed, when it is time to compute the answer. Reads the frame note in the run folder under outputs/ and writes the script, result tables and charts next to it.
+description: Answers a framed business question about Beam's data, using aggregate SQL against the course-db database and one pandas script that can be rerun, where every headline number carries its comparison. Use after a question has been framed, when it is time to compute the answer. Reads the frame note in the run folder under outputs/ and writes the script, result tables and charts next to it.
 user-invocable: true
-allowed-tools: Read Bash Write Edit Glob AskUserQuestion
+allowed-tools: Read Bash Write Edit Glob AskUserQuestion mcp__course-db__list_tables mcp__course-db__execute_sql
 argument-hint: "[path to the run folder under outputs/]"
 ---
 
@@ -17,8 +17,8 @@ So the model reasons and the code computes. You decide what to compute and what 
 - Not the brief. You report numbers on the CLI; the Deliver step writes the brief.
 - Not the review. You run the checks your plan needs; the Validate step reviews the work.
 - Not a notebook. The output is one script that runs top to bottom.
-- Not a window into raw rows. You never print raw rows into the conversation; the script prints aggregates only.
-- Not a data editor. You never modify anything in `data/`.
+- Not a window into raw rows. You never print raw rows into the conversation. SQL queries return aggregates only, and the script prints aggregates only.
+- Not a data editor. You never modify anything in `data/`, and you only run read-only `select` statements against the database.
 
 ## The rules
 
@@ -39,9 +39,10 @@ These hold in every act.
 
 ## Act 2: Load the context
 
-1. Read `knowledge/beam/quirks.md`, `knowledge/beam/corrections.md`, and `knowledge/beam/<table>.md` for each table involved.
+1. Read `knowledge/beam/quirks.md`, `knowledge/beam/corrections.md`, and `knowledge/beam/<table>.yaml` for each table involved. Obey any `query_guidance` in a table note: a large table is queried with aggregates only.
 2. If a table involved has no note, run the profile skill on it first: read `.claude/skills/profile/SKILL.md` and follow it, then come back here.
-3. Say in one line which quirks apply to this question, and which corrections, if any.
+3. Call `mcp__course-db__list_tables` if you need to confirm a table or column exists in the database. The database is the source of truth; use `data/*.csv` only for a table the database does not have.
+4. Say in one line which quirks apply to this question, and which corrections, if any.
 
 ## Act 3: Plan
 
@@ -51,20 +52,31 @@ Write three to six bullets describing the computation. The plan must say:
 - How each applicable quirk is handled. Take them from `knowledge/beam/quirks.md`: apply each rule it gives for the tables involved, and name any listed anomaly that enters a comparison.
 - Which segments you will split by and why.
 - Which checks the script will run.
+- Which aggregate queries pull the data, and at what grain (for example by month and plan), so the script can compute rates, comparisons and checks from the result tables.
 
 Show the plan before writing the script.
 
-## Act 4: Write and run the script
+## Act 4: Pull the data, write and run the script
+
+### Pull the data from the database
+
+1. Write each query to `outputs/<run>/queries.sql`, one block per result, headed by a comment `-- name: <name>`. Read-only `select` only. Aggregate in SQL to the grain the plan needs (by day, month, plan, segment) and return only that small table. Never `select *`, and never pull session-level or other row-level data. Apply the quirks' filters in the SQL (for example `session_date <= '2026-09-24'`, closed periods only, scheduled starts excluded).
+2. Run each query with `mcp__course-db__execute_sql` and save its result exactly as returned, with no edits, to `outputs/<run>/data/raw_<name>.csv`. If a query fails (for example a large table runs the server out of temp disk space), narrow it with a date filter or split it, and say so in the report. Do not retry the same query unchanged.
+3. For a join, check the fan-out in SQL (row count or distinct key count before and after the join) and record the result, because `helpers.checks.join_fan_out` needs the rows themselves.
+
+### Write the script
 
 Write one script at `outputs/<run>/analysis.py`:
 
-1. Read `data/*.csv` with pandas.
-2. Use `helpers.checks` for at least the checks the plan needs: `date_boundaries` for partial periods at the edges, `matured_only` for windows that have not closed, `join_fan_out` before trusting any join, `parts_sum_to_total` when segments should add back to a total. Print each check's `summary`.
+1. Read the `outputs/<run>/data/raw_*.csv` result tables with pandas, and `data/*.csv` for any table the database does not have.
+2. Use `helpers.checks` for at least the checks the plan needs: `date_boundaries` for partial periods at the edges, `matured_only` for windows that have not closed, `join_fan_out` where a join happens in pandas, `parts_sum_to_total` when segments should add back to a total. Print each check's `summary`.
 3. Save each result table to `outputs/<run>/data/<name>.csv`.
 4. Make charts only through `helpers.charts`: `bar` or `line`, then `save` into `outputs/<run>/charts/<name>.png`. Every title states the takeaway the chart proves, not a label.
 5. Print the headline numbers, each with its comparison, and the check summaries. Print aggregates only.
 
 Run it from the repo root with `poetry run python outputs/<run>/analysis.py`. If it fails, fix it and rerun until it runs clean. If a check fails, decide whether it changes the answer and fix the script or report it. If the data cannot answer the question, say so plainly and stop.
+
+The script reruns from the saved result tables. Refreshing them means rerunning `queries.sql`; the script itself has no database connection.
 
 ## Act 5: Report
 
@@ -73,6 +85,7 @@ On the CLI, report:
 - Each headline number with its comparison, stated as percentage points or relative percent, saying which.
 - What was segmented and why.
 - Which checks ran and what each said.
+- Which queries ran, and any that failed or were narrowed.
 - What was not checked.
 - The path of the run folder.
 
@@ -86,5 +99,6 @@ Keep it under twenty lines. No brief here; the Deliver step writes the brief.
 - **Quirks first.** Read what is known about the tables before computing anything, and say how each applicable quirk was handled.
 - **Closed periods only.** An open month or a record whose outcome is not yet known (see `quirks.md`) is not a result.
 - **Name the unit of change.** Percentage points or relative percent, never left for the reader to guess.
-- **Rerunnable or it did not happen.** Anyone can run the script again and get the same tables, charts and numbers.
+- **Aggregates from the database, arithmetic in code.** SQL returns small aggregate tables; the script computes every number from them.
+- **Rerunnable or it did not happen.** Anyone can run the script again and get the same tables, charts and numbers, and `queries.sql` shows exactly where the data came from.
 - **Say what you did not check.** A gap you name is safer than one a reader finds later.

@@ -1,0 +1,153 @@
+table: sessions
+source: course-db public.sessions
+table_comment: Records user activity sessions.
+profiled_from: course-db database (aggregate queries on the live table), replacing the earlier CSV export profile
+query_guidance:
+  size: >-
+    This table is huge (4.3 million rows here, and possibly a sample of a far larger
+    source). Treat it as too big to read row by row.
+  rule: >-
+    Query it only with aggregates (counts, distinct counts, sums, averages, percentiles,
+    min and max), grouped by something coarse such as month, day, activity_type or plan.
+    Never select raw rows or `select *`, and never print session-level rows into the
+    conversation.
+  practice:
+    - Filter by `session_date` first and keep the window as narrow as the question allows.
+    - Aggregate in the database and pull back only the small result table, not the rows.
+    - Avoid group-bys on `user_id` or on several columns at once without a date filter; there is no index beyond the primary key, and a wide group-by has already run the server out of temp disk space.
+    - For daily, weekly or monthly active users, prefer `marts.user_activity_metrics` over recounting from `sessions`, after checking the two agree.
+    - Join to `users` or `subscriptions` only after aggregating sessions to the level of the join, not before.
+rows: 4335470
+grain:
+  statement: >-
+    one row per session_id; one user activity session, labelled with its main activity
+    (from the table metadata).
+  status: guess
+primary_key: session_id
+foreign_keys:
+  - column: user_id
+    references: users.user_id
+    constraint: sessions_user_id_fkey
+    status: confirmed by table metadata and by data (0 sessions with a user_id missing from users)
+sample:
+  database_rows: 4335470
+  earlier_export_rows: 4335470
+  source_rows: 368000000
+  source_rows_status: stated by the user earlier, not measured here
+  note: >-
+    The database table has exactly the same row count as the earlier CSV export, so the
+    export was a full copy of this table and the "4.3 million vs 10 million" question is
+    settled for the database: it holds 4,335,470 rows. What is still unknown is whether
+    this table is itself a sample of a larger real table (the user mentioned 368 million
+    rows at the source, about 1.2%) and how it was drawn. Do not read totals as Beam-wide
+    figures; rates and mixes are the safer reads.
+source_ddl_notes:
+  - Primary key `session_id` (serial, integer).
+  - All columns are NOT NULL in the source, which agrees with the 0% null rates.
+  - "`session_date` is `timestamp without time zone`, `duration_minutes` is `integer`, `activity_type` is `varchar(255)`."
+  - Only the primary key index exists; there is no index on `user_id` or `session_date`, so large group-bys on this table are slow and can run the database out of temp space.
+  - Every `user_id` exists in `users` (checked against the database).
+columns:
+  - name: session_id
+    dtype: integer
+    null_rate: 0.0
+    distinct: 4335470
+    meaning: unique identifier for the session (0 duplicates).
+    meaning_status: confirmed
+  - name: user_id
+    dtype: integer
+    null_rate: 0.0
+    distinct: 29568
+    meaning: foreign key to `users.user_id`. Not unique per row.
+    meaning_status: confirmed
+  - name: session_date
+    dtype: timestamp without time zone
+    null_rate: 0.0
+    distinct: 1717
+    meaning: >-
+      "date and time when the session occurred" per the metadata, but every value is at
+      midnight (0 rows with a time of day), so in practice it is a date only. Time of day
+      is not available (quirk: timestamps everywhere).
+    meaning_status: confirmed
+  - name: duration_minutes
+    dtype: integer
+    null_rate: 0.0
+    distinct: 132
+    meaning: >-
+      duration of the session in minutes. Minimum is 1, so very short sessions are
+      present.
+    meaning_status: confirmed
+  - name: activity_type
+    dtype: varchar(255)
+    null_rate: 0.0
+    distinct: 3
+    meaning: >-
+      the main activity performed during the session (browse, listen, read). One value
+      per session, so a session that mixes activities is labelled by its main one. Reads
+      are the smallest share.
+    meaning_status: confirmed
+date_ranges:
+  - column: session_date
+    min: "2022-01-12T00:00:00"
+    max: "2026-09-26T00:00:00"
+low_cardinality:
+  activity_type:
+    browse: 2597635
+    listen: 1306227
+    read: 431608
+facts:
+  - >-
+    Every month from 2022-01 to 2026-09 has rows (57 months, no gaps). 2022-01 has 18
+    distinct days (data starts 2022-01-12) and 2026-09 has 26; every other month covers
+    all of its days.
+  - >-
+    Monthly volume climbs from 93 sessions in 2022-01 to about 144,000 in 2025-08, then
+    runs flat at about 140,000 to 165,000 a month through 2026-07.
+  - >-
+    2026-08 is high: 201,247 sessions, against 164,534 in 2026-07. Per day that is about
+    6,500 against 5,300. 2026-09 (26 days of data) runs at about 6,200 a day. No quirk
+    explains the step up; unexplained.
+  - >-
+    No September 2025 spike. The quirk about a signup spike in 2025-09 does not show in
+    sessions: 142,421 against 144,602 in 2025-08.
+  - >-
+    273 rows are dated 2026-09-25 (189) or 2026-09-26 (84), after the data end of
+    2026-09-24. None are later than 2026-09-26. Exclude them from anything that counts
+    what has happened (quirk: sessions after the data end).
+  - >-
+    activity_type is about 60% browse, 30% listen and 10% read.
+  - >-
+    duration_minutes: min 1, median 7, mean 10.5, 90th percentile 23, 99th percentile
+    47, max 157. Right-skewed. No zero or negative values; 11,877 sessions are 60
+    minutes or more, none 180 or more.
+  - >-
+    29,568 of the 31,165 users in `users` have at least one session. About 5% of users
+    have none.
+  - >-
+    21,479 rows repeat the same user, date, duration and activity as another row but
+    have a different `session_id`. This figure comes from the earlier export and was
+    not re-run on the database (the query ran the server out of temp disk space). With
+    date-only timestamps these may be genuine separate short sessions; they are not
+    removed.
+open_questions:
+  - >-
+    Is this table a sample of a larger real table, and if so how was it drawn (random by
+    session, by user, or something else)? This decides whether per-user counts
+    (sessions per user) are valid.
+  - Why is 2026-08 about 20% higher per day than 2026-07 and 2026-09?
+  - Why do 273 rows fall after 2026-09-24?
+  - >-
+    Does this table feed `marts.user_activity_metrics` (DAU, WAU, MAU)? The mart's
+    comment says it is derived from distinct users with a session in the window, so it
+    likely does. Do not combine the two in one analysis without reconciling them.
+  - >-
+    Are very short sessions (1 to 2 minutes) real or incidental? Do not filter on
+    duration until someone decides.
+verdict:
+  status: Caution
+  reasons:
+    - The columns are clean and coverage is continuous across 57 months and nearly all users.
+    - 273 rows are after the analysis date.
+    - An unexplained jump in 2026-08.
+    - Whether the table is a sample, and how it was drawn, is unknown.
+    - Safe for rates, mixes and distributions; check the sampling method before using counts or per-user figures.

@@ -1,0 +1,51 @@
+table: users
+rows: 31165
+grain:
+  statement: one row per user_id
+  status: guess
+primary_key: user_id
+columns:
+  - name: user_id
+    dtype: int64
+    null_rate: 0.0
+    distinct: 31165
+    meaning: unique, one row per user.
+    meaning_status: inferred
+  - name: signup_date
+    dtype: datetime64[ns]
+    null_rate: 0.0
+    distinct: 12512
+    meaning: 2022-01-01 to 2026-09-24 (account creation, not subscription start).
+    meaning_status: inferred
+  - name: country
+    dtype: object
+    null_rate: 0.0
+    distinct: 4
+    meaning: US, EU, India, Rest (coarse regions).
+    meaning_status: inferred
+  - name: device_type
+    dtype: object
+    null_rate: 0.0
+    distinct: 3
+    meaning: Web, Android, iOS.
+    meaning_status: inferred
+date_ranges:
+  - column: signup_date
+    min: "2022-01-01T00:00:00"
+    max: "2026-09-24T22:59:05"
+low_cardinality:
+  country:
+    US: 12472
+    Rest: 6270
+    India: 6238
+    EU: 6185
+  device_type:
+    Web: 10466
+    Android: 10363
+    iOS: 10336
+facts: []
+open_questions: []
+verdict:
+  status: Proceed
+  reasons:
+    - Used only for segmenting.

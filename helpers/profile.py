@@ -78,49 +78,48 @@ def profile_csv(path: str | Path) -> dict:
     }
 
 
-def profile_to_markdown(result: dict) -> str:
-    """Return a profile from profile_csv as a markdown note, ready for knowledge/beam/."""
-    grain = result["grain_guess"] or "no id column found"
-    lines = [
-        f"# {result['table']}",
-        "",
-        f"Grain (a guess from the data, confirm it): {grain}. "
-        f"{result['rows']:,} rows.",
-        "",
-        "## Columns",
-        "",
-        "| Name | Type | Null rate | Distinct |",
-        "| --- | --- | --- | --- |",
-    ]
-    for col in result["columns"]:
-        lines.append(
-            f"| {col['name']} | {col['dtype']} | {col['null_rate']:.2%} "
-            f"| {col['distinct']:,} |"
-        )
+def profile_to_yaml(result: dict) -> str:
+    """Return a profile from profile_csv as a YAML note, ready for knowledge/beam/<table>.yaml.
 
-    lines += ["", "## Date ranges", ""]
-    if result["date_columns"]:
-        for col in result["date_columns"]:
-            lines.append(f"- `{col['name']}`: {col['min']} to {col['max']}")
-    else:
-        lines.append("- None")
+    Generated keys (rows, columns, date_ranges, low_cardinality) come from the data.
+    Keys a person or the profile skill fills in (meaning, open_questions, verdict)
+    are left empty.
+    """
+    import yaml
 
-    lines += ["", "## Low-cardinality values", ""]
-    if result["low_cardinality"]:
-        for name, counts in result["low_cardinality"].items():
-            values = ", ".join(f"{k} ({v:,})" for k, v in counts.items())
-            lines.append(f"- `{name}`: {values}")
-    else:
-        lines.append("- None")
-
-    lines += [
-        "",
-        "## Meaning",
-        "",
-        "Fill in what each column means for the business.",
-        "",
-    ]
-    return "\n".join(lines)
+    grain = result["grain_guess"]
+    note = {
+        "table": result["table"],
+        "rows": result["rows"],
+        "grain": {
+            "statement": grain or "no id column found",
+            "status": "guess",
+        },
+        "primary_key": result["id_column"],
+        "columns": [
+            {
+                "name": col["name"],
+                "dtype": col["dtype"],
+                "null_rate": round(col["null_rate"], 4),
+                "distinct": col["distinct"],
+                "meaning": None,
+                "meaning_status": "inferred",
+            }
+            for col in result["columns"]
+        ],
+        "date_ranges": [
+            {"column": c["name"], "min": str(c["min"]), "max": str(c["max"])}
+            for c in result["date_columns"]
+        ],
+        "low_cardinality": {
+            name: {str(k): v for k, v in counts.items()}
+            for name, counts in result["low_cardinality"].items()
+        },
+        "facts": [],
+        "open_questions": [],
+        "verdict": {"status": None, "reasons": []},
+    }
+    return yaml.safe_dump(note, sort_keys=False, allow_unicode=True, width=100)
 
 
 if __name__ == "__main__":

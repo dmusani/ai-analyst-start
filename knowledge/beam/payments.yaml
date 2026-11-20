@@ -1,0 +1,75 @@
+table: payments
+source: public.payments
+rows: 100914
+grain:
+  statement: one row per payment_id, unique to each row.
+  status: confirmed by user
+primary_key: payment_id
+foreign_keys:
+  - column: subscription_id
+    references: subscriptions.subscription_id
+source_ddl_notes:
+  - Primary key `payment_id` (serial).
+  - All columns are NOT NULL in the source, which agrees with the 0.00% null rates.
+  - "`amount_usd` is `numeric(10,2)` and `method` is `varchar(255)` in the source; the CSV export reads them as float and text."
+columns:
+  - name: payment_id
+    dtype: int64
+    null_rate: 0.0
+    distinct: 100914
+    meaning: unique payment identifier per row.
+    meaning_status: confirmed
+  - name: subscription_id
+    dtype: int64
+    null_rate: 0.0
+    distinct: 11122
+    meaning: >-
+      subscription identifier. Not unique per row; a subscription has many payments.
+      Always found in `subscriptions` (checked); 11,122 distinct subscriptions pay, so
+      free plans never appear.
+    meaning_status: confirmed
+  - name: payment_date
+    dtype: datetime64[ns]
+    null_rate: 0.0
+    distinct: 13232
+    meaning: >-
+      the date a payment was made for a `subscription_id`. `subscription_id` +
+      `payment_date` is unique per row (checked, 0 duplicates). Range 2025-01-01 to
+      2026-09-24. No history before 2025, so monthly payment history before 2025 is
+      missing.
+    meaning_status: confirmed
+  - name: amount_usd
+    dtype: float64
+    null_rate: 0.0
+    distinct: 3
+    meaning: >-
+      payment amount in USD. Values are 10.00 and 12.00 (monthly plan) and 100.00
+      (annual plan). Every monthly payment from 2026-03-01 is $12, including those of
+      subscribers who started before March: the increase hit existing subscribers too,
+      with no unexposed monthly group (quirk: monthly price change).
+    meaning_status: confirmed
+  - name: method
+    dtype: object
+    null_rate: 0.0
+    distinct: 4
+    meaning: method of payment. Values are card, paypal, apple_pay or google_pay.
+    meaning_status: confirmed
+date_ranges:
+  - column: payment_date
+    min: "2025-01-01T00:00:00"
+    max: "2026-09-24T23:51:30"
+low_cardinality:
+  amount_usd:
+    10.0: 59064
+    12.0: 37384
+    100.0: 4466
+  method:
+    card: 50237
+    paypal: 20272
+    apple_pay: 15298
+    google_pay: 15107
+facts: []
+open_questions: []
+verdict:
+  status: Proceed
+  reasons: []

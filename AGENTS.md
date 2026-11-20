@@ -11,7 +11,7 @@ A data analyst that runs inside Claude Code on Beam's data. Beam is a media app 
 ## Where things live
 ```
 data/                    Beam CSV exports; never modified
-knowledge/beam/          one note per table, quirks.md, corrections.md
+knowledge/beam/          one YAML note per table, quirks.md, corrections.md
 helpers/                 profile, checks, charts; the arithmetic runs here
 outputs/<date>_<slug>/   one folder per question:
                          frame.md, analysis.py, data/, charts/, review.md, brief.md

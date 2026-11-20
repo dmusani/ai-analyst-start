@@ -1,0 +1,13 @@
+day_one,later_days,trials,converted,conv_pct
+1_day1_0to2,1_days_0to1,72,4,5.56
+1_day1_0to2,2_days_2to3,143,18,12.59
+1_day1_0to2,3_days_4,79,26,32.91
+1_day1_0to2,4_days_5to6,246,217,88.21
+2_day1_3to5,1_days_0to1,11,1,9.09
+2_day1_3to5,2_days_2to3,40,6,15.0
+2_day1_3to5,3_days_4,45,19,42.22
+2_day1_3to5,4_days_5to6,343,312,90.96
+3_day1_6plus,1_days_0to1,5,0,0.0
+3_day1_6plus,2_days_2to3,53,4,7.55
+3_day1_6plus,3_days_4,46,14,30.43
+3_day1_6plus,4_days_5to6,266,207,77.82

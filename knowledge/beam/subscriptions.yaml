@@ -1,0 +1,79 @@
+table: subscriptions
+rows: 30747
+grain:
+  statement: one row per subscription_id
+  status: guess
+primary_key: subscription_id
+columns:
+  - name: subscription_id
+    dtype: int64
+    null_rate: 0.0
+    distinct: 30747
+    meaning: >-
+      unique, and so is `user_id`, so each user has at most one subscription row
+      (profile output).
+    meaning_status: inferred
+  - name: user_id
+    dtype: int64
+    null_rate: 0.0
+    distinct: 30747
+    meaning: unique, so each user has at most one subscription row (profile output).
+    meaning_status: inferred
+  - name: plan
+    dtype: object
+    null_rate: 0.0
+    distinct: 3
+    meaning: >-
+      free (18,234), monthly (9,376) or annual (3,137). Free plans have no `end_date`
+      (quirk: free plans never end).
+    meaning_status: inferred
+  - name: start_date
+    dtype: datetime64[ns]
+    null_rate: 0.0
+    distinct: 9584
+    meaning: >-
+      when the subscription began. Runs to 2026-10-04, after the analysis date; rows
+      after 2026-09-24 are scheduled starts (quirk: future start dates).
+    meaning_status: inferred
+  - name: end_date
+    dtype: datetime64[ns]
+    null_rate: 0.879
+    distinct: 1789
+    meaning: >-
+      when it ended or is scheduled to end. 87.9% null (free plans, still-running paid
+      plans). Runs to 2026-11-11; dates after 2026-09-24 are scheduled cancellations and
+      still active today (quirk: future end dates).
+    meaning_status: inferred
+  - name: status
+    dtype: object
+    null_rate: 0.0
+    distinct: 3
+    meaning: >-
+      active, canceled or expired. Not used for retention, because `end_date` carries
+      the timing.
+    meaning_status: inferred
+date_ranges:
+  - column: start_date
+    min: "2022-01-11T00:00:00"
+    max: "2026-10-04T17:15:33"
+  - column: end_date
+    min: "2022-03-07T00:00:00"
+    max: "2026-11-11T18:47:46"
+low_cardinality:
+  plan:
+    free: 18234
+    monthly: 9376
+    annual: 3137
+  status:
+    active: 27028
+    expired: 2929
+    canceled: 790
+facts: []
+open_questions: []
+verdict:
+  status: Proceed
+  reasons:
+    - >-
+      Proceed for the retention question, with caution on the monthly start spikes in
+      Jul and Sep 2026 (monthly starts 491 and 886 vs about 200 in earlier months; most
+      are likely trials converting or scheduled starts, not confirmed).

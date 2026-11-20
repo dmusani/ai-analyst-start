@@ -1,0 +1,7 @@
+cutoffs,group,trials,converted,conversion_pct,ci_low_pct,ci_high_pct
+A,binge_then_quiet,58,4,6.9,2.71,16.43
+A,steady,726,670,92.29,90.12,94.01
+A,other,565,154,27.26,23.75,31.07
+B,binge_then_quiet,91,8,8.79,4.52,16.4
+B,steady,660,613,92.88,90.66,94.6
+B,other,598,207,34.62,30.91,38.52
