@@ -41,7 +41,7 @@ A question is framed only when you know what it informs and who decides.
 1. Read `knowledge/beam/quirks.md` and `knowledge/beam/corrections.md`.
 2. List `data/*.csv` with Glob and read any `knowledge/beam/<table>.yaml` that exists. Do not open the CSVs.
 3. Pin down the terms the question leaves loose. For each that applies, write what you will assume and mark it for confirmation:
-   - **The metric.** What exactly is "conversion", "churn", "active"? Use the table notes and quirks to name the definition you would use.
+   - **The metric.** What exactly is "conversion", "churn", "active"? Use the `definitions` and `measures` in the table notes, and the quirks, to name the definition you would use. Name the measure (for example `trial_conversion_rate`) so the later steps compute the same thing.
    - **The population.** Which rows count, and which are excluded by a known quirk (whatever `quirks.md` lists). When a quirk implies a rule for who counts, for example that a record must be old enough for its outcome to be known before it is read, put that rule in this definition. Do not name the quirk under Quirks and then define the population against it.
    - **The time window.** Which period, and whether it has closed. Treat the analysis date as today (see Act 4 for where it comes from).
    - **The comparison.** What the number will be set against: a prior period, a segment or a benchmark. Say "no comparison available" if none exists.

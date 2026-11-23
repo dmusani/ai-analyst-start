@@ -1,51 +1,162 @@
 table: users
-rows: 31165
+source: course-db public.users
+description: >-
+  Every Beam account. One row per user, with when the account was created, a coarse region and
+  the device type. Use it to segment other tables, and to count signups.
 grain:
-  statement: one row per user_id
-  status: guess
+  statement: one row per user_id.
+  confidence: confirmed
 primary_key: user_id
+default_filters:
+  - rule: "Cap signup_date at 2026-09-24."
+    quirk: analysis_date
+
+relationships:
+  - to: subscriptions
+    on: users.user_id = subscriptions.user_id
+    cardinality: one-to-zero-or-one
+    note: >-
+      418 users have no subscription, and they are exactly the 418 open-trial users. Every other
+      user has a plan row (free, monthly or annual).
+  - to: trials
+    on: users.user_id = trials.user_id
+    cardinality: one-to-zero-or-one
+    note: 2,073 users took a trial. Trials start 2026-08-01.
+  - to: sessions
+    on: users.user_id = sessions.user_id
+    cardinality: one-to-many
+    note: about 5% of users have no sessions. Aggregate sessions per user before joining.
+  - to: payments
+    on: via subscriptions.user_id (payments has no user_id)
+    cardinality: one-to-many
+    note: go users to subscriptions to payments, aggregating payments first.
+
 columns:
   - name: user_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 31165
-    meaning: unique, one row per user.
-    meaning_status: inferred
+    role: key
+    description: unique user identifier.
+    confidence: confirmed
   - name: signup_date
-    dtype: datetime64[ns]
-    null_rate: 0.0
-    distinct: 12512
-    meaning: 2022-01-01 to 2026-09-24 (account creation, not subscription start).
-    meaning_status: inferred
+    role: time
+    description: >-
+      when the account was created. It is not the subscription start. Range 2022-01-01 to
+      2026-09-24. Carries real times on some rows.
+    quirk_refs: [timestamps_everywhere, september_2025_spike]
+    confidence: inferred
   - name: country
-    dtype: object
-    null_rate: 0.0
-    distinct: 4
-    meaning: US, EU, India, Rest (coarse regions).
-    meaning_status: inferred
+    role: dimension
+    description: coarse region, not a country.
+    allowed_values:
+      US: 12,472 users.
+      EU: 6,185.
+      India: 6,238.
+      Rest: 6,270.
+    confidence: inferred
   - name: device_type
-    dtype: object
-    null_rate: 0.0
-    distinct: 3
-    meaning: Web, Android, iOS.
-    meaning_status: inferred
-date_ranges:
-  - column: signup_date
-    min: "2022-01-01T00:00:00"
-    max: "2026-09-24T22:59:05"
-low_cardinality:
-  country:
-    US: 12472
-    Rest: 6270
-    India: 6238
-    EU: 6185
-  device_type:
-    Web: 10466
-    Android: 10363
-    iOS: 10336
-facts: []
-open_questions: []
-verdict:
-  status: Proceed
-  reasons:
-    - Used only for segmenting.
+    role: dimension
+    description: the device on the account.
+    allowed_values:
+      Web: 10,466 users.
+      Android: 10,363.
+      iOS: 10,336.
+    confidence: inferred
+
+definitions:
+  user: An account. A user may have no subscription, no trial and no sessions.
+  signup: The creation of an account, dated by `signup_date`. Not a payment, not a trial.
+  region: One of US, EU, India, Rest. Coarse, so do not call it a country.
+  segment: A value of `country` or `device_type`. The two cross evenly outside the US (each cell about 2,000, US about 4,100).
+
+measures:
+  - name: signups
+    description: accounts created in a period.
+    sql: count(*)
+    grain: month of signup_date, optionally by country or device_type
+    filters: ["signup_date::date <= '2026-09-24'"]
+    caveats:
+      - 2025-09 is about five times a normal month (known anomaly).
+      - 2026-08 and 2026-09 are about three times a normal month, driven by trial signups.
+    quirk_refs: [september_2025_spike]
+  - name: users_by_segment
+    description: users by region and device.
+    sql: count(*)
+    grain: country, device_type
+  - name: users_without_subscription
+    description: users with no row in subscriptions.
+    sql: "count(*) filter (where s.user_id is null)"
+    filters: [left join subscriptions s on s.user_id = users.user_id]
+    caveats: [Equal to the open-trial users on 2026-09-24.]
+
+golden_queries:
+  - name: signups_by_month
+    question: How many accounts are created each month?
+    measures: [signups]
+    sql: |
+      select to_char(date_trunc('month', signup_date), 'YYYY-MM') as ym, count(*) as signups
+      from public.users
+      where signup_date >= '2025-06-01'
+      group by 1
+      order by 1;
+    expected: >-
+      About 600 to 700 a month, except 2025-09 3,056, 2026-08 2,315 and 2026-09 1,805 (24 days).
+    verified: 2026-11-23
+  - name: segment_mix
+    question: What is the mix of users by region and device?
+    measures: [users_by_segment]
+    sql: |
+      select country, device_type, count(*) as users
+      from public.users
+      group by 1, 2
+      order by 1, 2;
+    expected: "US cells about 4,150 each; EU, India and Rest cells about 2,000 to 2,100 each. 31,165 in total."
+    verified: 2026-11-23
+  - name: users_without_subscription
+    question: Who has an account but no plan row?
+    measures: [users_without_subscription]
+    sql: |
+      select count(*) as users,
+             count(*) filter (where s.user_id is null) as no_subscription,
+             count(*) filter (where t.user_id is not null) as with_trial
+      from public.users u
+      left join public.subscriptions s on s.user_id = u.user_id
+      left join public.trials t on t.user_id = u.user_id;
+    expected: "31,165 users, 418 without a subscription, 2,073 with a trial. The 418 are the open-trial users."
+    verified: 2026-11-23
+  - name: summer_2026_signups_vs_trials
+    question: Is the 2026 signup surge made of trial users?
+    sql: |
+      select to_char(date_trunc('month', u.signup_date), 'YYYY-MM') as ym,
+             count(*) as signups,
+             count(t.user_id) as in_trials
+      from public.users u
+      left join public.trials t on t.user_id = u.user_id
+      where u.signup_date >= '2026-07-01'
+      group by 1
+      order by 1;
+    expected: "2026-07 696 signups, 0 trials; 2026-08 2,315 and 1,180; 2026-09 1,805 and 893. About half of the surge are trial users."
+    verified: 2026-11-23
+
+facts:
+  - >-
+    The signup surge in 2026-08 and 2026-09 coincides with the launch of trials on 2026-08-01
+    and with the sessions jump in 2026-08. About half of those signups are trial users; the
+    other half are not explained.
+open_questions:
+  - Is the other half of the 2026-08 and 2026-09 signup surge (non-trial users) a campaign, or something else?
+
+profile:
+  profiled_at: 2026-11-23
+  rows: 31165
+  columns:
+    user_id: {null_rate: 0.0, distinct: 31165}
+    signup_date: {null_rate: 0.0, distinct: 12512}
+    country: {null_rate: 0.0, distinct: 4}
+    device_type: {null_rate: 0.0, distinct: 3}
+  date_ranges:
+    signup_date: ["2022-01-01T00:00:00", "2026-09-24T22:59:05"]
+  low_cardinality:
+    country: {US: 12472, Rest: 6270, India: 6238, EU: 6185}
+    device_type: {Web: 10466, Android: 10363, iOS: 10336}
+
+caveats:
+  - Safe for segmenting and signup counts. Flag the 2025-09 and 2026-08 signup surges.

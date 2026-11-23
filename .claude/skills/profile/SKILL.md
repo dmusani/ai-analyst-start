@@ -62,7 +62,7 @@ Look hardest at four things: the grain guess and the duplicate ids, the null rat
      print(profile_to_yaml(profile_csv('<path>')))"
      ```
 
-2. Write it to `knowledge/beam/<table>.yaml`. If the note already exists, replace the generated keys (`rows`, `grain.statement`, `primary_key`, the numbers in `columns`, `date_ranges`, `low_cardinality`) with the fresh output and keep every sentence a person wrote, in `meaning`, `facts`, `open_questions`, `query_guidance` and anywhere else.
+2. Write it to `knowledge/beam/<table>.yaml`. If the note already exists in the semantic layout (it has a `profile:` block), replace only the `profile:` block (`profiled_at`, `rows`, the per-column `null_rate` and `distinct`, `date_ranges`, `low_cardinality`) with the fresh output. Leave `description`, `grain`, `default_filters`, `relationships`, `columns`, `definitions`, `measures`, `golden_queries`, `facts`, `open_questions`, `query_guidance` and `caveats` as written. If a fresh number contradicts one of those, add a line to `facts` or `open_questions` and tell the person; do not overwrite it silently. For a new table with no note, use the same layout as `knowledge/beam/trials.yaml`: write the generated numbers into `profile:`, fill `description`, `columns` (with `role` and `confidence`) and `definitions` from the data, and leave `measures` and `golden_queries` empty lists until a person or an analysis adds verified ones.
 3. Fill `meaning` for every column: what it means for the business, inferred from its name, its values, the database comment and the quirks. Set `meaning_status` to `inferred` until a person confirms it, then `confirmed`. A meaning that comes straight from a database column comment may be marked `confirmed by table metadata`. Where a quirk explains a column's nulls or range, say so and name the quirk.
 4. Set `grain.status` to `guess`, or to `confirmed by user` once a person confirms it. Add source facts to `source_ddl_notes`, other findings to `facts`, and unanswered points to `open_questions`. For a large table, add a `query_guidance` block saying to query it with aggregates only. Keep the file valid YAML: load it with `yaml.safe_load` before moving on.
 
@@ -74,7 +74,7 @@ Give one verdict:
 - **Caution**: something is unexplained. Name it.
 - **Blocked**: the table cannot answer questions at this grain. Say why.
 
-Record it in the note as `verdict.status` (Proceed, Caution or Blocked) with `verdict.reasons`, one string per reason. Follow it on the CLI with the reasons, one line each.
+Record it in the note as `verdict.status` (Proceed, Caution or Blocked) with `verdict.reasons`, one string per reason. In a note that uses the semantic layout, the `caveats` list carries the reasons, and the verdict goes first in it as "Proceed:", "Caution:" or "Blocked:". Follow it on the CLI with the reasons, one line each.
 
 ## Act 6: Propose new quirks
 

@@ -1,89 +1,191 @@
 table: trials
-rows: 2073
+source: course-db public.trials
+description: >-
+  Beam's 14-day free trials. One row per user who started a trial. The table holds the
+  trial's dates and how it ended (converted to a paid plan, or canceled). Use it for trial
+  conversion and for anything that starts from a trial cohort.
 grain:
-  statement: one row per trial_id
-  status: guess
+  statement: one row per trial_id, and one row per user_id (each user has at most one trial).
+  confidence: confirmed
 primary_key: trial_id
+default_filters:
+  - rule: "Conversion rates use resolved trials only: `outcome is not null`."
+    quirk: trials_mature_late
+  - rule: "Anything that counts what has happened stops at the analysis date, 2026-09-24."
+    quirk: analysis_date
+
+relationships:
+  - to: users
+    on: trials.user_id = users.user_id
+    cardinality: many-to-one (in practice one-to-one)
+    note: every trial user exists in users (checked).
+  - to: subscriptions
+    on: trials.user_id = subscriptions.user_id
+    cardinality: one-to-zero-or-one
+    note: >-
+      Converted trials have exactly one paid subscription whose start_date equals the trial's
+      ends_at date. Canceled and open trials have none. Join on user_id, not on dates.
+  - to: sessions
+    on: trials.user_id = sessions.user_id
+    cardinality: one-to-many
+    note: aggregate sessions to the trial window (per trial) before joining, never join raw rows.
+
 columns:
   - name: trial_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 2073
-    meaning: >-
-      unique, and so is `user_id`, so each user has at most one trial (profile output;
-      matches AGENTS.md).
-    meaning_status: inferred
+    role: key
+    description: unique trial identifier.
+    confidence: confirmed
   - name: user_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 2073
-    meaning: >-
-      unique, so each user has at most one trial. All `user_id`s are found in `users`
-      (checked).
-    meaning_status: inferred
+    role: key
+    description: the user who took the trial. Unique in this table.
+    confidence: confirmed
   - name: started_at
-    dtype: datetime64[ns]
-    null_rate: 0.0
-    distinct: 2071
-    meaning: >-
-      when the trial began. Runs 2026-08-01 to 2026-09-24, so the table holds about seven
-      weeks of trials (quirk: trials launched 2026-08-01). No earlier history exists.
-    meaning_status: inferred
+    role: time
+    description: when the trial began. History starts 2026-08-01, the day trials launched.
+    quirk_refs: [trials_launched_2026_08_01, timestamps_everywhere]
+    confidence: inferred
   - name: ends_at
-    dtype: datetime64[ns]
-    null_rate: 0.0
-    distinct: 2071
-    meaning: >-
-      `started_at` plus 14 days. Runs to 2026-10-08, after the analysis date.
-    meaning_status: inferred
+    role: time
+    description: started_at plus 14 days. Open trials have an ends_at after the analysis date.
+    confidence: confirmed
   - name: outcome
-    dtype: object
-    null_rate: 0.2016
-    distinct: 2
-    meaning: >-
-      converted or canceled (converted = became paid, confirmed against `subscriptions`;
-      see facts). 20.16% null = trials still open (418 rows). Every open trial has
-      `ends_at` after 2026-09-24 and started on or after 2026-09-11 (checked), so the
-      nulls are explained by the quirk "trials mature late". Exclude them from
-      conversion rates.
-    meaning_status: confirmed
+    role: dimension
+    description: how the trial ended. Null means still open.
+    allowed_values:
+      converted: became a paid subscription starting on ends_at (confirmed against subscriptions).
+      canceled: ended without a paid subscription.
+      null: open trial, outcome not yet known. Never count as a failure.
+    quirk_refs: [trials_mature_late]
+    confidence: confirmed
   - name: outcome_at
-    dtype: datetime64[ns]
-    null_rate: 0.2016
-    distinct: 1655
-    meaning: >-
-      when the outcome was recorded. Null exactly when `outcome` is null (checked),
-      never before `started_at`, never after `ends_at` (checked). Some trials resolve
-      before `ends_at` (early cancel or early conversion; inferred).
-    meaning_status: inferred
-date_ranges:
-  - column: started_at
-    min: "2026-08-01T00:29:17"
-    max: "2026-09-24T22:59:05"
-  - column: ends_at
-    min: "2026-08-15T00:29:17"
-    max: "2026-10-08T22:59:05"
-  - column: outcome_at
-    min: "2026-08-06T05:37:23"
-    max: "2026-09-24T23:55:08"
-low_cardinality:
-  outcome:
-    converted: 828
-    canceled: 827
+    role: time
+    description: >-
+      when the outcome was recorded. Null exactly when outcome is null. Never before started_at
+      and never after ends_at. Some trials resolve early, before ends_at.
+    confidence: inferred
+
+definitions:
+  trial: A 14-day free period. Each user gets at most one. The table starts on 2026-08-01.
+  converted: >-
+    The user ended the trial on a paid plan (monthly or annual). In the data this means a
+    subscription starting on the trial's ends_at date. 828 converted trials: 590 monthly, 238 annual.
+  canceled: The user ended the trial without paying.
+  open_trial: A trial with no outcome yet. Always started on or after 2026-09-11 in the current data.
+  resolved_trial: A trial with an outcome (converted or canceled). The denominator of conversion.
+  matured_trial: >-
+    A trial that started on or before 2026-09-10, so its 14 days are closed by the analysis date.
+    Its outcome is known.
+  provisional_cohort: >-
+    A cohort that started in the last 14 days. Only the early resolvers are visible, and they
+    differ from late ones, so the rate is not representative.
+
+measures:
+  - name: trials_started
+    description: number of trials that began.
+    sql: count(*)
+    filters: [started_at::date <= '2026-09-24']
+  - name: open_trials
+    description: trials still running.
+    sql: count(*) filter (where outcome is null)
+  - name: trial_conversion_rate
+    description: share of resolved trials that converted.
+    sql: "sum((outcome = 'converted')::int)::numeric / nullif(count(outcome), 0)"
+    grain: any cohort of trials (start week, device, region)
+    filters: [outcome is not null]
+    caveats:
+      - Report for matured cohorts (started on or before 2026-09-10). Later cohorts are provisional.
+      - >-
+        Weeks 7 and 8 (from 2026-09-12) show 0 converted among their early resolvers, because
+        conversion lands on ends_at. The rate there is not a real rate.
+    quirk_refs: [trials_mature_late]
+  - name: days_to_outcome
+    description: days from start to recorded outcome.
+    sql: "(outcome_at::date - started_at::date)"
+    filters: [outcome is not null]
+
+golden_queries:
+  - name: overall_conversion
+    question: What share of resolved trials converted?
+    measures: [trial_conversion_rate]
+    sql: |
+      select count(*) as trials,
+             count(outcome) as resolved,
+             sum((outcome = 'converted')::int) as converted,
+             round(sum((outcome = 'converted')::int)::numeric / nullif(count(outcome), 0), 4) as conversion_rate
+      from public.trials;
+    expected: "2,073 trials, 1,655 resolved, 828 converted, rate 0.5003 (418 open)."
+    verified: 2026-11-23
+    watch_out: Includes unmatured cohorts, so use matured_conversion_by_start_week for any trend.
+  - name: matured_conversion_by_start_week
+    question: How does conversion move by week of trial start?
+    measures: [trial_conversion_rate]
+    sql: |
+      select ((started_at::date - date '2026-08-01') / 7 + 1) as start_week,
+             count(*) as trials,
+             count(outcome) as resolved,
+             sum((outcome = 'converted')::int) as converted,
+             round(sum((outcome = 'converted')::int)::numeric / nullif(count(outcome), 0), 4) as conversion_rate
+      from public.trials
+      group by 1
+      order by 1;
+    expected: >-
+      Weeks 1 to 6 resolve fully or nearly (288, 273, 262, 240, 260, 266 trials) with rates
+      0.5417, 0.5201, 0.5534, 0.5250, 0.5192, 0.4940. Weeks 7 and 8 show 73 and 8 resolved and
+      0 converted: provisional, do not read as a drop.
+    verified: 2026-11-23
+  - name: converted_trial_subscription_check
+    question: Does every converted trial map to one paid subscription starting on ends_at?
+    sql: |
+      select s.plan,
+             count(*) as converted_trials,
+             sum((s.start_date::date = t.ends_at::date)::int) as start_on_ends_at
+      from public.trials t
+      join public.subscriptions s on s.user_id = t.user_id
+      where t.outcome = 'converted'
+      group by 1
+      order by 1;
+    expected: "annual 238 of 238, monthly 590 of 590 start on ends_at."
+    verified: 2026-11-23
+  - name: conversion_by_device
+    question: Does conversion differ by device or region?
+    measures: [trial_conversion_rate]
+    sql: |
+      select u.device_type,
+             count(t.outcome) as resolved,
+             round(sum((t.outcome = 'converted')::int)::numeric / nullif(count(t.outcome), 0), 4) as conversion_rate
+      from public.trials t
+      join public.users u on u.user_id = t.user_id
+      where t.started_at::date <= '2026-09-10'
+      group by 1
+      order by 1;
+    expected: "Matured cohorts: Android 0.5456 (526 resolved), iOS 0.5714 (518), Web 0.4813 (509). Web is lower."
+    verified: 2026-11-23
+
 facts:
   - >-
-    Converted means paid (confirmed, checked on the data to 2026-09-24): all 828
-    converted trials have a paid subscription (590 monthly, 238 annual) that starts on
-    the trial's `ends_at` date (median gap 0 days, 100% within one day). None of the 827
-    canceled trials and none of the 418 open trials has a paid subscription. Matching is
-    by `user_id`, which is unique in `subscriptions`.
-  - >-
-    Because early outcomes arrive before `ends_at`, trials started in the last 14 days
-    are partly resolved and the resolved part may not be representative (early resolvers
-    differ from late ones). Treat rates for those cohorts as provisional.
+    Early outcomes arrive before ends_at, so trials started in the last 14 days are partly
+    resolved and the resolved part is not representative. Treat rates for those cohorts as
+    provisional. In the current data, weeks 7 and 8 have 0 conversions among 81 resolved trials.
+  - 418 open trials, all started on or after 2026-09-11 with ends_at after 2026-09-24.
 open_questions: []
-verdict:
-  status: Proceed
-  reasons:
-    - The grain is clear and every null is explained by a quirk.
-    - Caution for any trend: the latest two weeks of cohorts are unmatured.
+
+profile:
+  profiled_at: 2026-11-23
+  rows: 2073
+  columns:
+    trial_id: {null_rate: 0.0, distinct: 2073}
+    user_id: {null_rate: 0.0, distinct: 2073}
+    started_at: {null_rate: 0.0, distinct: 2071}
+    ends_at: {null_rate: 0.0, distinct: 2071}
+    outcome: {null_rate: 0.2016, distinct: 2}
+    outcome_at: {null_rate: 0.2016, distinct: 1655}
+  date_ranges:
+    started_at: ["2026-08-01T00:29:17", "2026-09-24T22:59:05"]
+    ends_at: ["2026-08-15T00:29:17", "2026-10-08T22:59:05"]
+    outcome_at: ["2026-08-06T05:37:23", "2026-09-24T23:55:08"]
+  low_cardinality:
+    outcome: {converted: 828, canceled: 827}
+
+caveats:
+  - Safe for conversion on matured cohorts (started on or before 2026-09-10).
+  - The latest two weeks of cohorts are unmatured.

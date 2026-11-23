@@ -35,7 +35,7 @@ Your job is to put the recommendation first, state only numbers the analysis pro
 2. Read each result table in `outputs/<run>/data/` that a headline number comes from. Read the tables, not the raw data.
 3. Read `analysis.py` to find, for each number you will use, the table it comes from, the filter applied and the line or step that computes it.
 4. List the charts in `outputs/<run>/charts/`. Use only charts that exist.
-5. Read `knowledge/beam/quirks.md` and `knowledge/beam/corrections.md`. Name any quirk that shaped a number, so the reader is not surprised by it.
+5. Read `knowledge/beam/quirks.md` and `knowledge/beam/corrections.md`. Name any quirk that shaped a number, so the reader is not surprised by it. Name the measure each headline number uses (from the table notes), so the reader can find its definition.
 
 ## Act 3: Write the brief
 

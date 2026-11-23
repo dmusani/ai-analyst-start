@@ -1,75 +1,195 @@
 table: payments
-source: public.payments
-rows: 100914
+source: course-db public.payments
+description: >-
+  Every charge to a paying subscription. One row per payment. Free plans never appear. Use it
+  for revenue, price, payment method and billing activity.
 grain:
-  statement: one row per payment_id, unique to each row.
-  status: confirmed by user
+  statement: one row per payment_id; subscription_id plus payment_date is also unique (0 duplicates).
+  confidence: confirmed
 primary_key: payment_id
-foreign_keys:
-  - column: subscription_id
-    references: subscriptions.subscription_id
-source_ddl_notes:
-  - Primary key `payment_id` (serial).
-  - All columns are NOT NULL in the source, which agrees with the 0.00% null rates.
-  - "`amount_usd` is `numeric(10,2)` and `method` is `varchar(255)` in the source; the CSV export reads them as float and text."
+default_filters:
+  - rule: "Payments dated after 2026-09-24 do not exist in the data; cap at 2026-09-24 anyway."
+    quirk: analysis_date
+  - rule: "Any monthly-plan comparison across 2026-03-01 is split by price era."
+    quirk: monthly_price_change
+
+relationships:
+  - to: subscriptions
+    on: payments.subscription_id = subscriptions.subscription_id
+    cardinality: many-to-one
+    note: >-
+      Every payment finds its subscription (144,065 of 144,065 after the join). Get plan from
+      subscriptions. Get region and device by going on to users.
+    status: confirmed
+  - to: users
+    on: via subscriptions.user_id
+    cardinality: many-to-one
+    note: payments has no user_id. Join through subscriptions.
+
 columns:
   - name: payment_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 100914
-    meaning: unique payment identifier per row.
-    meaning_status: confirmed
+    role: key
+    description: unique payment identifier.
+    confidence: confirmed
   - name: subscription_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 11122
-    meaning: >-
-      subscription identifier. Not unique per row; a subscription has many payments.
-      Always found in `subscriptions` (checked); 11,122 distinct subscriptions pay, so
-      free plans never appear.
-    meaning_status: confirmed
+    role: key
+    description: the subscription charged. A subscription has many payments. 11,696 distinct subscriptions pay.
+    confidence: confirmed
   - name: payment_date
-    dtype: datetime64[ns]
-    null_rate: 0.0
-    distinct: 13232
-    meaning: >-
-      the date a payment was made for a `subscription_id`. `subscription_id` +
-      `payment_date` is unique per row (checked, 0 duplicates). Range 2025-01-01 to
-      2026-09-24. No history before 2025, so monthly payment history before 2025 is
-      missing.
-    meaning_status: confirmed
+    role: time
+    description: >-
+      date of the payment. Range 2022-01-12 to 2026-09-24, so history in the database goes back to 2022.
+    quirk_refs: [timestamps_everywhere]
+    confidence: confirmed
   - name: amount_usd
-    dtype: float64
-    null_rate: 0.0
-    distinct: 3
-    meaning: >-
-      payment amount in USD. Values are 10.00 and 12.00 (monthly plan) and 100.00
-      (annual plan). Every monthly payment from 2026-03-01 is $12, including those of
-      subscribers who started before March: the increase hit existing subscribers too,
-      with no unexposed monthly group (quirk: monthly price change).
-    meaning_status: confirmed
+    role: measure
+    description: payment amount in USD. Only three values exist.
+    allowed_values:
+      "10.00": monthly plan, before 2026-03-01.
+      "12.00": monthly plan, from 2026-03-01. The increase hit existing subscribers too.
+      "100.00": annual plan.
+    quirk_refs: [monthly_price_change]
+    confidence: confirmed
   - name: method
-    dtype: object
-    null_rate: 0.0
-    distinct: 4
-    meaning: method of payment. Values are card, paypal, apple_pay or google_pay.
-    meaning_status: confirmed
-date_ranges:
-  - column: payment_date
-    min: "2025-01-01T00:00:00"
-    max: "2026-09-24T23:51:30"
-low_cardinality:
-  amount_usd:
-    10.0: 59064
-    12.0: 37384
-    100.0: 4466
-  method:
-    card: 50237
-    paypal: 20272
-    apple_pay: 15298
-    google_pay: 15107
-facts: []
-open_questions: []
-verdict:
-  status: Proceed
-  reasons: []
+    role: dimension
+    description: how the user paid.
+    allowed_values:
+      card: about 49.8% of payments.
+      paypal: about 20.2%.
+      apple_pay: about 15.1%.
+      google_pay: about 15.0%.
+    confidence: confirmed
+
+definitions:
+  payment: One successful charge row. There is no refund or failed-payment column.
+  revenue: Sum of amount_usd, as billed, in USD. It is cash charged, not recognised revenue.
+  price_era: >-
+    Before 2026-03-01 a monthly payment is $10. From 2026-03-01 it is $12. Annual is $100 in both.
+  paying_subscriber: A subscription with at least one payment in the period.
+  arppu: Revenue divided by distinct paying subscriptions in the same period (average revenue per paying subscriber).
+  billing_cadence: >-
+    Annual payments land once a year per subscription, so annual revenue is lumpy by month. Do not
+    read a month's annual revenue as a run rate.
+
+measures:
+  - name: revenue_usd
+    description: total charged.
+    sql: sum(amount_usd)
+    grain: month of payment_date, plan, method
+    caveats:
+      - Monthly revenue after 2026-03-01 mixes price and volume. Compare payments counts as well.
+    quirk_refs: [monthly_price_change]
+  - name: payments_count
+    description: number of payments.
+    sql: count(*)
+  - name: paying_subscribers
+    description: distinct subscriptions with a payment in the period.
+    sql: count(distinct subscription_id)
+  - name: arppu
+    description: revenue per paying subscriber.
+    sql: sum(amount_usd) / count(distinct subscription_id)
+    caveats:
+      - Mixes monthly ($10 or $12) and annual ($100) payers, so split by plan when comparing.
+      - Rises after 2026-03 partly because of the price change.
+    quirk_refs: [monthly_price_change]
+  - name: method_share
+    description: share of payments by method.
+    sql: count(*)::numeric / sum(count(*)) over ()
+
+golden_queries:
+  - name: revenue_by_month_and_plan
+    question: How do payments and revenue move by month and plan, and when did the price change?
+    measures: [revenue_usd, payments_count]
+    sql: |
+      select to_char(date_trunc('month', p.payment_date), 'YYYY-MM') as ym,
+             s.plan, p.amount_usd,
+             count(*) as payments,
+             sum(p.amount_usd) as revenue
+      from public.payments p
+      join public.subscriptions s on s.subscription_id = p.subscription_id
+      where p.payment_date >= '2026-01-01' and p.payment_date < '2026-09-25'
+      group by 1, 2, 3
+      order by 1, 2, 3;
+    expected: >-
+      Monthly plan is $10 in 2026-01 (5,323 payments) and 2026-02 (4,997), $12 from 2026-03
+      (5,586, revenue 67,032). Annual is $100 throughout. 2026-09 holds 24 days only.
+    verified: 2026-11-23
+  - name: price_step_check
+    question: Is the $10 to $12 change clean on 2026-03-01?
+    sql: |
+      select
+        (select count(*) from public.payments p join public.subscriptions s on s.subscription_id = p.subscription_id
+          where s.plan = 'monthly' and p.payment_date >= '2026-03-01' and p.amount_usd = 10) as monthly_10_after_march,
+        (select count(*) from public.payments where payment_date < '2026-03-01' and amount_usd = 12) as at_12_before_march;
+    expected: "0 and 0. No monthly payment at $10 after 2026-03-01, no $12 before it."
+    verified: 2026-11-23
+  - name: arppu_by_month
+    question: What does average revenue per paying subscriber look like?
+    measures: [arppu]
+    sql: |
+      select to_char(date_trunc('month', payment_date), 'YYYY-MM') as ym,
+             count(distinct subscription_id) as paying_subs,
+             sum(amount_usd) as revenue,
+             round(sum(amount_usd) / count(distinct subscription_id), 2) as arppu
+      from public.payments
+      where payment_date >= '2026-01-01' and payment_date < '2026-09-01'
+      group by 1
+      order by 1;
+    expected: "2026-01 12.93, 2026-02 13.46, 2026-03 16.16, 2026-04 15.14, 2026-07 16.95, 2026-08 16.97. The step in March is the price change."
+    verified: 2026-11-23
+  - name: payment_method_mix
+    question: How do users pay?
+    measures: [method_share]
+    sql: |
+      select method, count(*) as payments,
+             round(count(*)::numeric / sum(count(*)) over (), 4) as share
+      from public.payments
+      where payment_date < '2026-09-25'
+      group by 1
+      order by 2 desc;
+    expected: "card 71,726 (0.4979), paypal 29,056 (0.2017), apple_pay 21,731 (0.1508), google_pay 21,552 (0.1496)."
+    verified: 2026-11-23
+  - name: revenue_by_year
+    question: How much was charged each year?
+    measures: [revenue_usd, paying_subscribers]
+    sql: |
+      select to_char(date_trunc('year', payment_date), 'YYYY') as yr,
+             count(*) as payments,
+             sum(amount_usd) as revenue,
+             count(distinct subscription_id) as paying_subs
+      from public.payments
+      group by 1
+      order by 1;
+    expected: "2022 45,050; 2023 169,900; 2024 375,230; 2025 692,940; 2026 to date 792,908 (9 months)."
+    verified: 2026-11-23
+
+facts:
+  - >-
+    The CSV export this note was first built on held 100,914 rows from 2025-01-01. The
+    database holds 144,065 rows from 2022-01-12. The earlier "no history before 2025" quirk
+    describes the export, not the database. Prefer the database. Earlier run folders that
+    limited payments to 2025 onwards used the export window.
+  - >-
+    Every monthly payment from 2026-03-01 is $12, including subscribers who started before
+    March, so no monthly group escaped the increase.
+open_questions:
+  - Are failed or refunded charges missing from this table? There is no status column.
+
+profile:
+  profiled_at: 2026-11-23
+  rows: 144065
+  columns:
+    payment_id: {null_rate: 0.0, distinct: 144065}
+    subscription_id: {null_rate: 0.0, distinct: 11696}
+    payment_date: {null_rate: 0.0}
+    amount_usd: {null_rate: 0.0, distinct: 3}
+    method: {null_rate: 0.0, distinct: 4}
+  date_ranges:
+    payment_date: ["2022-01-12T00:00:00", "2026-09-24T23:51:30"]
+  low_cardinality:
+    amount_usd: {10.0: 100452, 12.0: 37384, 100.0: 6229}
+    method: {card: 71726, paypal: 29056, apple_pay: 21731, google_pay: 21552}
+
+caveats:
+  - Safe for revenue and price analysis from 2022 on.
+  - Split any monthly comparison across 2026-03-01 by price era.

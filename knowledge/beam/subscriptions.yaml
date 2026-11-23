@@ -1,79 +1,224 @@
 table: subscriptions
-rows: 30747
+source: course-db public.subscriptions
+description: >-
+  Beam's plan holdings. One row per user who has a plan: free, monthly or annual. Free users
+  have a row too. Holds when the plan started, and when it ended or is scheduled to end. Use it
+  for the paying base, plan mix and retention.
 grain:
-  statement: one row per subscription_id
-  status: guess
+  statement: one row per subscription_id, and one row per user_id (a user has at most one subscription row).
+  confidence: confirmed
 primary_key: subscription_id
+default_filters:
+  - rule: "Counts of what has happened exclude rows with start_date after 2026-09-24 (scheduled starts)."
+    quirk: future_start_dates
+  - rule: "Churn and retention exclude plan = 'free'."
+    quirk: free_plans_never_end
+  - rule: "A future end_date means still active today."
+    quirk: future_end_dates
+
+relationships:
+  - to: users
+    on: subscriptions.user_id = users.user_id
+    cardinality: one-to-one
+    note: use users for country and device_type.
+  - to: payments
+    on: subscriptions.subscription_id = payments.subscription_id
+    cardinality: one-to-many
+    note: free plans never have payments. Aggregate payments before joining.
+  - to: trials
+    on: subscriptions.user_id = trials.user_id
+    cardinality: one-to-zero-or-one
+    note: a subscription that follows a trial starts on the trial's ends_at date.
+
 columns:
   - name: subscription_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 30747
-    meaning: >-
-      unique, and so is `user_id`, so each user has at most one subscription row
-      (profile output).
-    meaning_status: inferred
+    role: key
+    description: unique subscription identifier.
+    confidence: confirmed
   - name: user_id
-    dtype: int64
-    null_rate: 0.0
-    distinct: 30747
-    meaning: unique, so each user has at most one subscription row (profile output).
-    meaning_status: inferred
+    role: key
+    description: owning user. Unique in this table.
+    confidence: confirmed
   - name: plan
-    dtype: object
-    null_rate: 0.0
-    distinct: 3
-    meaning: >-
-      free (18,234), monthly (9,376) or annual (3,137). Free plans have no `end_date`
-      (quirk: free plans never end).
-    meaning_status: inferred
+    role: dimension
+    description: the plan held.
+    allowed_values:
+      free: no payments, no end_date. Never part of churn or retention.
+      monthly: billed monthly. Price rose from $10 to $12 in March 2026.
+      annual: billed yearly at $100.
+    confidence: confirmed
   - name: start_date
-    dtype: datetime64[ns]
-    null_rate: 0.0
-    distinct: 9584
-    meaning: >-
-      when the subscription began. Runs to 2026-10-04, after the analysis date; rows
-      after 2026-09-24 are scheduled starts (quirk: future start dates).
-    meaning_status: inferred
+    role: time
+    description: >-
+      when the plan began. Runs to 2026-10-04. Rows after 2026-09-24 are scheduled starts, mostly
+      trials about to convert.
+    quirk_refs: [future_start_dates, timestamps_everywhere]
+    confidence: inferred
   - name: end_date
-    dtype: datetime64[ns]
-    null_rate: 0.879
-    distinct: 1789
-    meaning: >-
-      when it ended or is scheduled to end. 87.9% null (free plans, still-running paid
-      plans). Runs to 2026-11-11; dates after 2026-09-24 are scheduled cancellations and
-      still active today (quirk: future end dates).
-    meaning_status: inferred
+    role: time
+    description: >-
+      when the plan ended or is scheduled to end. Null for free plans and for paid plans with no
+      end. Dates after 2026-09-24 are scheduled cancellations, still active today.
+    quirk_refs: [future_end_dates, free_plans_never_end]
+    confidence: inferred
   - name: status
-    dtype: object
-    null_rate: 0.0
-    distinct: 3
-    meaning: >-
-      active, canceled or expired. Not used for retention, because `end_date` carries
-      the timing.
-    meaning_status: inferred
-date_ranges:
-  - column: start_date
-    min: "2022-01-11T00:00:00"
-    max: "2026-10-04T17:15:33"
-  - column: end_date
-    min: "2022-03-07T00:00:00"
-    max: "2026-11-11T18:47:46"
-low_cardinality:
-  plan:
-    free: 18234
-    monthly: 9376
-    annual: 3137
-  status:
-    active: 27028
-    expired: 2929
-    canceled: 790
-facts: []
-open_questions: []
-verdict:
-  status: Proceed
-  reasons:
-    - >-
-      Proceed for the retention question, with caution on the monthly start spikes in
-      Jul and Sep 2026 (monthly starts 491 and 886 vs about 200 in earlier months; most
-      are likely trials converting or scheduled starts, not confirmed).
+    role: dimension
+    description: >-
+      active, canceled or expired. Do not use it for retention: end_date carries the timing.
+      Use it only as a label.
+    allowed_values:
+      active: no end, or ends later.
+      canceled: the user canceled.
+      expired: ran to its end.
+    confidence: inferred
+
+definitions:
+  paid_subscription: A row with plan monthly or annual.
+  active_as_of_date: >-
+    A subscription that started on or before the date and has no end_date, or an end_date after
+    it. A future end_date is a scheduled cancellation, still active.
+  scheduled_start: A subscription with a start_date after the analysis date. Not yet happened.
+  scheduled_cancellation: A subscription with an end_date after the analysis date. Still active.
+  churned_in_month: A paid subscription whose end_date falls inside the month.
+  retention_at_N_days: >-
+    Share of a start cohort of paid subscriptions still active N days after start_date: no
+    end_date, or an end_date on or after start_date plus N days. Only cohorts old enough to be
+    observed at N days belong in the rate.
+  at_risk_in_month: Started before the month's first day, and not ended before it.
+
+measures:
+  - name: active_paid_subscribers_asof
+    description: paid subscriptions active on a date.
+    sql: |
+      count(*) filter (where plan in ('monthly','annual')
+        and start_date::date <= :asof and (end_date is null or end_date::date > :asof))
+    quirk_refs: [future_start_dates, future_end_dates]
+  - name: paid_starts
+    description: paid subscriptions that began in a period.
+    sql: "count(*) filter (where plan in ('monthly','annual') and start_date::date <= '2026-09-24')"
+    grain: month of start_date, by plan
+    quirk_refs: [future_start_dates]
+  - name: plan_mix
+    description: share of subscriptions by plan.
+    sql: "count(*)::numeric / sum(count(*)) over ()"
+    grain: plan
+  - name: retention_90d
+    description: share of a monthly-plan start cohort still active 90 days after start.
+    sql: "sum((end_date is null or end_date::date >= start_date::date + 90)::int)::numeric / count(*)"
+    grain: start month, by plan
+    filters:
+      - "plan = 'monthly'"
+      - "start_date::date <= date '2026-09-24' - 90"
+    caveats:
+      - Without an unexposed monthly group, a before and after gap cannot be separated from other changes.
+      - Cohorts of 2025-09 are about five times a normal month (known anomaly).
+    quirk_refs: [monthly_price_change, september_2025_spike]
+  - name: monthly_churned
+    description: paid subscriptions that ended in a month, against those at risk.
+    sql: "end_date::date >= :m and end_date::date < :m + interval '1 month'"
+    filters:
+      - started before the month's first day
+      - "plan in ('monthly','annual')"
+
+golden_queries:
+  - name: plan_mix
+    question: How many subscriptions are on each plan?
+    measures: [plan_mix]
+    sql: |
+      select plan, count(*) as subscriptions
+      from public.subscriptions
+      group by 1
+      order by 1;
+    expected: "annual 3,137, free 18,234, monthly 9,376 (total 30,747)."
+    verified: 2026-11-23
+  - name: active_paid_today
+    question: How many paid subscribers are active on the analysis date?
+    measures: [active_paid_subscribers_asof]
+    sql: |
+      select count(*) as active_paid
+      from public.subscriptions
+      where plan in ('monthly', 'annual')
+        and start_date::date <= '2026-09-24'
+        and (end_date is null or end_date::date > '2026-09-24');
+    expected: "8,374."
+    verified: 2026-11-23
+  - name: paid_starts_by_month
+    question: How many paid subscriptions started each month?
+    measures: [paid_starts]
+    sql: |
+      select to_char(date_trunc('month', start_date), 'YYYY-MM') as ym,
+             count(*) as paid_starts,
+             sum((plan = 'monthly')::int) as monthly_starts,
+             sum((plan = 'annual')::int) as annual_starts
+      from public.subscriptions
+      where plan in ('monthly', 'annual')
+        and start_date::date <= '2026-09-24'
+      group by 1
+      order by 1;
+    expected: >-
+      2026-01 to 2026-06 run 247 to 286 a month (monthly 180 to 222). Then 2026-07 649
+      (monthly 491), 2026-08 460 (323), 2026-09 625 (461). The jump from July matches trials
+      converting and is not confirmed.
+    verified: 2026-11-23
+  - name: monthly_retention_90d_by_start_month
+    question: How does 90-day retention move by start month for the monthly plan?
+    measures: [retention_90d]
+    sql: |
+      select to_char(date_trunc('month', start_date), 'YYYY-MM') as ym,
+             count(*) as cohort,
+             sum((end_date is null or end_date::date >= start_date::date + 90)::int) as retained_90d,
+             round(sum((end_date is null or end_date::date >= start_date::date + 90)::int)::numeric / count(*), 4) as retention_90d
+      from public.subscriptions
+      where plan = 'monthly'
+        and start_date::date <= date '2026-09-24' - 90
+        and start_date >= '2025-09-01'
+      group by 1
+      order by 1;
+    expected: >-
+      2025-09 0.9196 (cohort 1,181, the spike), 2025-12 0.9505, 2026-01 0.9099, 2026-02 0.8591,
+      2026-03 0.7513, 2026-04 0.7371, 2026-05 0.7722, 2026-06 0.7651. A visible fall from the
+      March 2026 cohort. Not a causal result on its own.
+    verified: 2026-11-23
+  - name: status_by_plan
+    question: What does status look like by plan, as a label check?
+    sql: |
+      select plan, status, count(*) as subscriptions
+      from public.subscriptions
+      group by 1, 2
+      order by 1, 2;
+    expected: >-
+      annual active 2,939, canceled 34, expired 164. free active 18,234. monthly active 5,855,
+      canceled 756, expired 2,765. Status is a label, not the retention source.
+    verified: 2026-11-23
+
+facts:
+  - >-
+    Counts in the database (2026-11-23): 1,549 rows start after 2026-09-24, 162 end after
+    2026-09-24, no free plan has an end_date.
+  - >-
+    Monthly paid starts jump in 2026-07 (491 against about 200 earlier). Most are likely trials
+    converting or scheduled starts, not confirmed. The old figure of 886 for September counted
+    scheduled starts after 2026-09-24; with the date cap it is 461.
+open_questions:
+  - Why do monthly starts jump in July 2026, before trials launched on 2026-08-01?
+
+profile:
+  profiled_at: 2026-11-23
+  rows: 30747
+  columns:
+    subscription_id: {null_rate: 0.0, distinct: 30747}
+    user_id: {null_rate: 0.0, distinct: 30747}
+    plan: {null_rate: 0.0, distinct: 3}
+    start_date: {null_rate: 0.0, distinct: 9584}
+    end_date: {null_rate: 0.879, distinct: 1789}
+    status: {null_rate: 0.0, distinct: 3}
+  date_ranges:
+    start_date: ["2022-01-11T00:00:00", "2026-10-04T17:15:33"]
+    end_date: ["2022-03-07T00:00:00", "2026-11-11T18:47:46"]
+  low_cardinality:
+    plan: {free: 18234, monthly: 9376, annual: 3137}
+    status: {active: 27028, expired: 2929, canceled: 790}
+
+caveats:
+  - Safe for retention and plan mix with the default filters applied.
+  - Be careful with the July and September 2026 monthly start spikes.

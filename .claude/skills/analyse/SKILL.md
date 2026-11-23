@@ -39,7 +39,7 @@ These hold in every act.
 
 ## Act 2: Load the context
 
-1. Read `knowledge/beam/quirks.md`, `knowledge/beam/corrections.md`, and `knowledge/beam/<table>.yaml` for each table involved. Obey any `query_guidance` in a table note: a large table is queried with aggregates only.
+1. Read `knowledge/beam/quirks.md`, `knowledge/beam/corrections.md`, and `knowledge/beam/<table>.yaml` for each table involved. Obey any `query_guidance` in a table note: a large table is queried with aggregates only. Each table note also holds `definitions`, `measures` and `golden_queries`: use a named measure and its `filters` instead of re-deriving the metric, start from a matching golden query, and apply each table's `default_filters`. If the run departs from a named measure, say so in the plan and give the reason.
 2. If a table involved has no note, run the profile skill on it first: read `.claude/skills/profile/SKILL.md` and follow it, then come back here.
 3. Call `mcp__course-db__list_tables` if you need to confirm a table or column exists in the database. The database is the source of truth; use `data/*.csv` only for a table the database does not have.
 4. Say in one line which quirks apply to this question, and which corrections, if any.
@@ -48,7 +48,7 @@ These hold in every act.
 
 Write three to six bullets describing the computation. The plan must say:
 
-- What each headline number is and the comparison it will carry (prior period, segment or benchmark), or that none exists.
+- What each headline number is, which named measure in the table notes it uses (or why it uses none), and the comparison it will carry (prior period, segment or benchmark), or that none exists.
 - How each applicable quirk is handled. Take them from `knowledge/beam/quirks.md`: apply each rule it gives for the tables involved, and name any listed anomaly that enters a comparison.
 - Which segments you will split by and why.
 - Which checks the script will run.
